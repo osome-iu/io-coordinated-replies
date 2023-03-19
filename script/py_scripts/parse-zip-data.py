@@ -148,4 +148,4 @@ if __name__ == "__main__":
 # python parse-zip-data.py --input=/N/slate/potem/YYYY_MM/2019_08/saudi_arabia_082019_1 --output=/N/slate/potem/data/derived/all_tweets --campaign-name=saudi_arabia_082019_1 --filename=unhashed_2019_08_saudi_arabia_082019_1_saudi_arabia_082019_1_tweets_csv_unhashed.zip
 
 
-# ops --task=create_driver_control_ds --bearer-token='AAAAAAAAAAAAAAAAAAAAAGSYMwEAAAAA0SHotV2VlbERbOryPAEnQeTsv3s%3DXapHUP61gJj9EqCiSVzMnldtRQRjfsRYP0kqryeAwvF5mdcoiN' --tweets-path='/N/slate/potem/data/derived/all_tweets/2021_12/uganda_0621/' uganda_0621_all_tweet.csv.gz
+# ops --task=create_driver_control_ds --bearer-token='' --tweets-path='/N/slate/potem/data/derived/all_tweets/2021_12/uganda_0621/' uganda_0621_all_tweet.csv.gz
