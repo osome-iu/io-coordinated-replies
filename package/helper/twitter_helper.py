@@ -271,7 +271,10 @@ def set_tweet_values(values):
     tweet['possibly_sensitive'] = values['possibly_sensitive']
     tweet['reply_settings'] = values['reply_settings']
     tweet['created_at'] = values['created_at']
-    tweet['edit_history_tweet_ids'] = values['edit_history_tweet_ids']
+    
+    if 'edit_history_tweet_ids' in values:
+        tweet['edit_history_tweet_ids'] = values['edit_history_tweet_ids']
+        
     tweet['tweetid'] = values['id']
     tweet['author_id'] = values['author_id']
     
