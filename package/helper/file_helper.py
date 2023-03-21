@@ -132,3 +132,32 @@ def empty_the_file(filename):
 
         
             
+def split_into_files(input_file, 
+                     save_path,
+                     split_threshold=50,
+                     prefix_for_file='job_control'
+                    ):
+    '''
+    Splits the rows of file into multiple files
+    :param input_file: text file which has data
+    :param split_threshold: threshold to split the rows by
+    :param save_path: path where files are to be saved
+    :param prefix_for_file: prefix for new file names
+    '''
+    
+    rows = file_hp.read_file(input_file)
+    index = 1
+    for i in range(0, len(rows), split_threshold):
+        ids_split = ids[i:i+split_threshold]
+        last = i + split_threshold
+
+        #first is the index of job
+        #second and third are the index of rows
+        filename = f'{prefix_for_file}_{index}_{i}_{last}.txt'
+
+        file_hp.write_to_file_row_each_line(save_path,
+                                            filename,
+                                            ids_split
+                                           )
+
+        index = index + 1
