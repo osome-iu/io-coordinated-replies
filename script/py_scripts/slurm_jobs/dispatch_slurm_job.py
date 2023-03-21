@@ -91,6 +91,9 @@ def parse_args():
     
     return parser.parse_args()
 
+
+
+
 def main(args):
     python_script = args.python_script
     job_name = args.job_name
@@ -115,4 +118,4 @@ if __name__ == "__main__":
     
     
     
-# python /geode2/home/u070/potem/Quartz/project/infoOps-strategy/script/py_scripts/slurm_jobs/dispatch_slurm_job.py --slurm_path=/N/u/potem/Quartz/sbatch --python_script="/geode2/home/u070/potem/Quartz/project/infoOps-strategy/script/py_scripts/get_reply_embedding.py --type_of=poster" --job_name=poster_twt_emb
+# python /geode2/home/u070/potem/Quartz/project/infoOps-strategy/script/py_scripts/slurm_jobs/dispatch_slurm_job.py --slurm_path=/N/u/potem/Quartz/sbatch --python_script=/geode2/home/u070/potem/Quartz/project/infoOps-strategy/script/py_scripts/data_sourcing/get_poster_tweets.py --job_name=poster_control_tweets
