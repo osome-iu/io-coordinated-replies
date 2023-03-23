@@ -39,3 +39,36 @@ def add_YYYY_MM_DD(df, column):
     
     return df
     
+    
+def time_difference(df,
+                    column_to_group,
+                    column_time,
+                    new_column_name,
+                    unit_for_diff='hour'
+                ):
+    '''
+    :param df: Dataframe
+    :param column_to_group: column name to groupby
+    :param column_time: column name that has time
+    :param new_column_name: new column name to 
+    save time difference value
+    :param unit_for_diff: unit to convert the time difference
+    
+    :return dataframe
+    '''
+    
+    df[new_column_name] = df.groupby(column_to_group)[column_time].diff()
+    df = df.dropna(subset=[new_column_name])
+    df[new_column_name] = df[new_column_name] + datetime.timedelta(seconds=1)
+
+    diff_column = new_column_name+ f'_{unit_for_diff}'
+    
+    if unit_for_diff == 'hour':
+        df[diff_column] = df['diff'].apply(
+            lambda x: np.ceil(x.total_seconds() / 3600))
+    if unit_for_diff == 'min':
+        df[diff_column] = df['diff'].apply(
+            lambda x: np.ceil(x.total_seconds() / 60))
+        
+        
+    return df
