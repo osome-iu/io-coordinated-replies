@@ -99,9 +99,21 @@ def cancel_jobs(start_no, end_no):
     :param start_no: starting job no
     :param end_no: ending job no
     '''
-    for i in range(start_no-1, end_no+1):
-        id = start_no + i
+    for i in range(start_no, end_no+1):
+        # id = start_no + i
 
-        command = f'scancel -u potem {id}'
+        command = f'scancel -u potem {i}'
 
         os.system(command)
+        
+        
+def check_if_error_terminated(error_path):
+    '''
+    Checks if the job is terminated due to error
+    :param error_path: path where error file is present
+    
+    :return Boolean
+    '''
+    error_string = file_hp.read_file(error_path)[-1]
+    
+    return 'Terminated' in error_string
