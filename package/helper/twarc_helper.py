@@ -52,7 +52,7 @@ def get_tweet_of_user(start_time,
     end_time = end_time.isoformat('T')
 
     command = f'twarc2 timeline --start-time={start_time} ' \
-    f'--end-time={end_time}  --use-search --exclude-retweets --exclude-replies ' \
+    f'--end-time={end_time}  --no-context-annotations  --use-search --exclude-retweets --exclude-replies ' \
     f'{userid} > {output}'
 
     print(command)
