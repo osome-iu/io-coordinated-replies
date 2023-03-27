@@ -532,6 +532,8 @@ def time_series_plot(parameters):
     else:
         size = (10, 10)
         
+    data = parameters['data']
+    
     fig, ax = plt.subplots(figsize=size)
         
     fontsize = 14
@@ -539,12 +541,13 @@ def time_series_plot(parameters):
               'pink', 'lime', 'maroon']
     x_index = np.arange(len(data))
     
-    
     x_label = parameters['xlabel']
     y_label = parameters['ylabel']
     title = parameters['title']
-    plot_path = parameters['save']['path']
-    filename = parameters['save']['filename']
+    
+    if 'save' in parameters:
+        plot_path = parameters['save']['path']
+        filename = parameters['save']['filename']
     
     for index, df in enumerate(parameters['data']):
         x = parameters['columns'][index]['x']
@@ -581,8 +584,12 @@ def time_series_plot(parameters):
     ax.xaxis.set_tick_params(labelbottom=True)
     ax.yaxis.set_tick_params(labelbottom=True)
 
+    frameon = False
+    if 'frameon' in parameters:
+        frameon = parameters['frameon']
+        
     ax.legend(loc="upper right", 
-              frameon=True, 
+              frameon=frameon, 
               fontsize=fontsize)
     ax.set_title(f'{title}')
     ax.tick_params(axis='x', labelrotation=90)
@@ -592,10 +599,11 @@ def time_series_plot(parameters):
         
     plt.show()
     
-    fig.savefig(f'{plot_path}/{filename}.png', 
-          facecolor='white', 
-          transparent=False)
-    
+    if 'save' in parameters:
+        fig.savefig(f'{plot_path}/{filename}.png', 
+              facecolor='white', 
+              transparent=False)
+
 
 def multiple_time_series_plot(parameters):
     '''
@@ -856,3 +864,123 @@ def scatter_plot(parameters):
               transparent=False)
         
     plt.show()
+    
+    
+    
+    
+
+def time_series_bar_plot(parameters):
+    '''
+    Creates time series plot
+    
+    :param parameters: dictionary of parameters to be used in plots
+    '''
+    
+    # timeseries_parameters = {
+    #     'data': replies_per_month,
+    #     'size': (8, 8),
+    #     'fontsize': 14,
+    #     'title': iran_202012_campaign,
+    #     'sharex': True,
+    #     'sharey': True,
+    #     'columns': [
+    #         {
+    #             'x': 'tweet_time_month',
+    #             'y': 'ratio_reply',
+    #             'label': 'Information Operation',
+    #         },
+    #         {
+    #             'x': 'tweet_time_month',
+    #             'y': 'ratio_reply',
+    #             'label': 'Control',
+    #         },
+    #     ],
+    #     'x': 'Percentage of replies \n to total tweets per month',
+    #     'two_column': False,
+    #     'ylabel': 'Ratio of replies \n to total tweets per month',
+    #     'xlabel': 'Time (Year-month)',
+    #     'legend_location': 'upper right',
+    #     'labels_location': {
+            # 'x_index': list(),
+            # 'labels': label_list()
+    # },
+    #     'random_color': False,
+    #     'save': {
+    #         'path': f'{plot_path}',
+    #         'filename': f'*.png'
+    #     },
+    # }
+    
+    if 'size' in parameters:
+        size = parameters['size']
+    else:
+        size = (10, 10)
+        
+    data = parameters['data']
+    
+    fig, ax = plt.subplots(figsize=size)
+        
+    fontsize = 14
+    colors = ['red', 'blue', 'orange', 'red', 'olive', 
+              'pink', 'lime', 'maroon']
+    x_index = np.arange(len(data))
+    
+    x_label = parameters['xlabel']
+    y_label = parameters['ylabel']
+    title = parameters['title']
+    
+    for index, df in enumerate(parameters['data']):
+        x = parameters['columns'][index]['x']
+        y = parameters['columns'][index]['y']
+        label = parameters['columns'][index]['label']
+        
+        ax.bar(df[x], 
+                df[y],
+                color=colors[index],
+                label=label,
+                linewidth=2,
+               )
+       
+    if 'yscale' in parameters and parameters['yscale'] == True:
+        ax.set_yscale('log')
+    
+    ax.set_ylabel(y_label, fontsize=fontsize, labelpad=1)
+    ax.set_xlabel(x_label, fontsize=fontsize)
+    
+    if 'labels_location' in parameters:
+        if 'x_index' in parameters['labels_location']:
+            x_index = parameters['labels_location']['x_index']
+            label_list = parameters['labels_location']['label_list']
+            plt.xticks(df[x][x_index], rotation=30, ha='right')
+
+    ax.tick_params(axis='both', which='both', 
+                   labelsize=8, labelbottom=True)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.yaxis.set_tick_params(labelbottom=True)
+
+    frameon = False
+    if 'frameon' in parameters:
+        frameon = parameters['frameon']
+        
+    ax.legend(loc="upper right", 
+              frameon=frameon, 
+              fontsize=fontsize)
+    
+    ax.set_title(f'{title}')
+    
+    plt.title(title)
+        
+    plt.show()
+    
+    if 'save' in parameters:
+        plot_path = parameters['save']['path']
+        filename = parameters['save']['filename']
+    
+        path_with_filename = f'{plot_path}' + os.sep + f'{filename}.png'
+        
+        fig.savefig(path_with_filename, 
+                    facecolor='white', 
+                    transparent=False)
+
+        
+
