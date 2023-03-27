@@ -485,3 +485,30 @@ def get_cosine(vector_list):
                                                  [ref[1]])[0][0],
                                2)
         all_cosine.append(cosine_ref_ref)
+        
+    return all_cosine
+
+
+def get_cosines_within_grp(grps,
+                      grp_key_name= 'poster_tweetid',
+                      save_path=None):
+    '''
+    Get the cosines of all reply combinations
+    :param grps: the group of replies to poster tweet ids
+    '''
+    all_cosine = []
+    for grp in grps:
+        if len(grp[1]) > 1:
+            cosine_value = get_cosine(grp[1]['embeddings'].tolist())
+            all_cosine.append([grp[0], cosine_value])
+
+    df = pd.DataFrame(data=all_cosine, 
+                  columns=[grp_key_name, 'cosine']
+                     )
+    
+    if save_path == None:
+        return df
+    
+    df.to_pickle(save_path)
+    
+    return df
