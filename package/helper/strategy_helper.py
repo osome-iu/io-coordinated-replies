@@ -73,11 +73,19 @@ def add_tweet_time_month(df):
     return df
 
 
-def get_date_range(min_date, max_date, column='tweet_time_month'):
+def get_date_range(min_date, max_date,
+                   column='tweet_time_month',
+                   freq='M'
+                  ):
     date_range = pd.date_range(min_date, max_date, 
-                               freq='M', inclusive='both').tolist()
-    date_range = [i.strftime('%Y-%m') for i in date_range]
-
+                               freq=freq,
+                               inclusive='both').tolist()
+    
+    if freq == 'M':
+        date_range = [i.strftime('%Y-%m') for i in date_range]
+    if freq == 'D':
+        date_range = [i.strftime('%Y-%m-%d') for i in date_range]
+        
     df = pd.DataFrame(data = date_range, columns=[column])
 
     df[column] = df[column].astype(str)
@@ -693,12 +701,12 @@ def reply_to_external_users(dataframe,
     df = dataframe
     
     if language != 'all':
-        df = df.loc[df[tweet_language] == language]
+        df = df.loc[df['tweet_language'] == language]
         
     df = df.fillna(0)
-    df_replies = df.loc[~(df[in_reply_to_tweetid] == 0)]
+    df_replies = df.loc[~(df['in_reply_to_tweetid'] == 0)]
 
-    df_replies = df_replies.loc[~(df_replies[in_reply_to_tweetid].isin(df[userid]))]
+    df_replies = df_replies.loc[~(df_replies['in_reply_to_tweetid'].isin(df['userid']))]
     
     return df_replies
 
@@ -834,7 +842,9 @@ def get_conversation(conversation_file,
 
         campaign_json = f'{campaign}.jsonl'
         path_to_json = os.path.join(extraction_location, campaign_json)
-        command = f'twarc2 conversations --archive {id_file} > {path_to_json}'
+        command = f'twarc2 conversations --no-context-annotations --archive {id_file} > {path_to_json}'
+        
+        print(command)
 
         os.system(command)  
 
