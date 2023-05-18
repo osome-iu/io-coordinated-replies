@@ -24,18 +24,6 @@ import config.config as config_hp
 #import helper.twitter_helper as twitter_hp
 #import helper.clean_tweet as clean_hp
 
-#Load files
-print('Load embedding: start')
-importlib.reload(config_hp)
-
-config = config_hp.config()
-
-embedding_path = config['EMBEDDINGS_PATH']
-reply_multilanguage_embedding = embedding_path['reply_multilanguage_embedding']
-
-df_embedding = pd.read_pickle(reply_multilanguage_embedding)
-
-print('Load embedding: done')
 
 #importlib.reload(config_hp)
 
@@ -94,34 +82,37 @@ list(combinations(group, 2))).reset_index()
 
 from itertools import combinations
 
-def try_get_combination(df, start, end):
+def try_get_combination(df, ids):
     print('Start the combination')
-    df_unq = df.groupby(['poster_tweetid', 
-                                   'replier_userid'])['replier_tweetid'].last().reset_index()   
-    df_size = df_unq.groupby(['poster_tweetid'])[
-        'replier_tweetid'].nunique().to_frame('count').reset_index()
-    max_num = df_size['count'].max()
+#     df_unq = df.groupby(['poster_tweetid', 
+#                          'replier_userid'])['replier_tweetid'].last().reset_index()   
+#     df_size = df_unq.groupby(['poster_tweetid'])[
+#         'replier_tweetid'].nunique().to_frame('count').reset_index()
+#     max_num = df_size['count'].max()
     
-    # start = 4000
-    # end = start + 1000
-    ids = df_size.loc[(df_size['count'] >= start) & (df_size['count'] < end)]['poster_tweetid']
+#     start = 4000
+#     # end = start + 1000
+#     ids = df_size.loc[(df_size['count'] >= start)]['poster_tweetid']
     
-    if len(ids) == 0:
-        return 0
+#     if len(ids) == 0:
+#         return 0
     
+    df = df.astype({
+        'poster_tweetid': str
+    })
     
-    df_poster = df.loc[df['poster_tweetid'].isin(ids)]
-    df_poster = df.head()
+    # df_poster = df.loc[df['poster_tweetid'].isin([ids])]
+    # df_poster = df.head()
 
-    importlib.reload(config_hp)
+#     importlib.reload(config_hp)
 
-    config = config_hp.config()
+#     config = config_hp.config()
 
-    embedding_path = config['EMBEDDINGS_PATH']
+#     embedding_path = config['EMBEDDINGS_PATH']
 
-    combination = embedding_path['combination_7']
+#     combination = embedding_path['combination_7']
 
-    df_poster = df.loc[df['poster_tweetid'].isin(ids)][['poster_tweetid',
+    df_poster = df.loc[df['poster_tweetid'].isin([ids])][['poster_tweetid',
                                                         'replier_tweetid']]
     
     print(len(df_poster))
@@ -130,6 +121,7 @@ def try_get_combination(df, start, end):
     
     df_comb = df_poster.groupby('poster_tweetid')['replier_tweetid'].apply(lambda x:
         list(combinations(x, 2))).reset_index()
+    
     print('list here')
     print(df_comb.info())
 
@@ -173,7 +165,7 @@ def try_get_combination(df, start, end):
     folder = '/N/slate/potem/data/derived/reply_embedding'
     
     df_emb_cosine[['poster_tweetid', 'replier_x', 'replier_y', 'cosine']].to_pickle(
-        f'{folder}/replier_tweetid_combination_{start}_{end}.pkl.gz')
+        f'{folder}/replier_tweetid_combination_{ids}.pkl.gz')
     
     print('here')
     
@@ -185,26 +177,36 @@ def parse_args():
     
     :return arguments passed in command
     '''
-    parser = argparse.ArgumentParser(description='get cosine of embedding')
+    parser = argparse.ArgumentParser(
+        description='get cosine of embedding')
     
-    parser.add_argument('--start',
-                        dest='start',
-                        help='Start')
-    
-    parser.add_argument('--end',
-                        dest='end',
-                        help='End')
+    parser.add_argument('--ids',
+                        dest='ids',
+                        help='Ids')
     
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
-    start = args.start
-    end = args.end
-    df_comb = try_get_combination(df_embedding, start, end)
+    ids = args.ids
+    
+    #Load files
+    print('Load embedding: start')
+    importlib.reload(config_hp)
+
+    config = config_hp.config()
+
+    embedding_path = config['EMBEDDINGS_PATH']
+    reply_multilanguage_embedding = embedding_path['reply_multilanguage_embedding']
+
+    df_embedding = pd.read_pickle(reply_multilanguage_embedding)
+
+    print('Load embedding: done')
+
+    df_comb = try_get_combination(df_embedding, ids)
     
     
-# python /N/slate/potem/project/infoOps-strategy/script/py_scripts/get_replier_tweetid_combination.py --start= --end=
+# python /N/slate/potem/project/infoOps-strategy/script/py_scripts/get_replier_tweetid_combination.py --ids= 
 
 
 
