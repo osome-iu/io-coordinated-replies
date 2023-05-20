@@ -10,12 +10,10 @@ def config(file = 'config.ini'):
     
     :return configparser
     '''
-    
     abs_path = os.path.dirname(os.path.abspath(__file__))
     parent = Path(abs_path).parents[1]
     config_file = os.path.join(parent, file)
     configure = ConfigParser()
-    
     configure.read(config_file)
     
     return configure
