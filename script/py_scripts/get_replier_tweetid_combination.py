@@ -119,7 +119,9 @@ def try_get_combination(df, ids):
     
     print('starting')
     
-    df_comb = df_poster.groupby('poster_tweetid')['replier_tweetid'].apply(lambda x:
+    df_sample = df_poster.sample(n=1000)
+    
+    df_comb = df_sample.groupby('poster_tweetid')['replier_tweetid'].apply(lambda x:
         list(combinations(x, 2))).reset_index()
     
     print('list here')
@@ -206,8 +208,4 @@ if __name__ == "__main__":
     df_comb = try_get_combination(df_embedding, ids)
     
     
-# python /N/slate/potem/project/infoOps-strategy/script/py_scripts/get_replier_tweetid_combination.py --ids= 
-
-
-
-
+# python /N/slate/potem/project/infoOps-strategy/script/py_scripts/get_replier_tweetid_combination.py --ids=1000096002135781376 
