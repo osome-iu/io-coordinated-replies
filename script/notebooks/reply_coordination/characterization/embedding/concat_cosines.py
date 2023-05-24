@@ -23,22 +23,30 @@ import helper.pandas_helper as pd_hp
 
 
 #### **Concat all cosines**
+config = config_hp.config()
+embedding_path = config['EMBEDDINGS_PATH']
+
+missing_tweets = embedding_path['missing_tweets']
+
+df_missing = pd.read_pickle(missing_tweets)
+ids = df_missing['missing_tweetids'].tolist()
 
 path = '/N/slate/potem/data/derived/reply_embedding/'
-filename = 'replier_tweetid_combination*'
-files = os.path.join(path, filename)
+
 df_all = pd.DataFrame()
-for file in glob.glob(files):
-    print(file)
-    
-    if file == '/N/slate/potem/data/derived/reply_embedding/replier_tweetid_combination.pkl.gz':
+for id in ids:
+    filename = f'replier_tweetid_combination_{id}*'
+    files = os.path.join(path, filename)
+    print(files)
+    file_list = glob.glob(files)
+    if len(file_list) == 0:
         continue
         
-    df = pd.read_pickle(file)
-    
+    df = pd.read_pickle(file_list[0])
+    print('read_sucessfully')
     df_all = df_all.append(df, ignore_index=True)
     
-#### **Add tweet lable id**
+### **Add tweet label id**
 config = config_hp.config()
 balanced = config['BALANCED']
 
@@ -63,11 +71,16 @@ print(df_grp.head())
 #### **Save the data**
 config = config_hp.config()
 embedding_path = config['EMBEDDINGS_PATH']
-
-cosine_pair_wise = embedding_path['cosine_pair_wise']
-
 df_temp = df_all.merge(df_grp[['poster_tweetid',
                                 'tweet_label'
                                ]])
 
-df_temp.to_pickle(cosine_pair_wise)
+
+cosine_pair_wise = embedding_path['cosine_pair_wise']
+df_cosine_pair = pd.read_pickle(cosine_pair_wise)
+df_cosine_all = df_cosine_pair.append(df_temp, 
+                                      ignore_index=True)
+
+
+all_cosine_pairwise = embedding_path['all_cosine_pairwise']
+df_cosine_all.to_pickle(all_cosine_pairwise)
