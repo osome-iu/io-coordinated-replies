@@ -66,8 +66,7 @@ def get_cosine_similarity(df, column):
         x[None,:,:], 
         x[:,None,:], 
         dim=-1)
-
-    rounded_similarity = torch.round(remove_diagonal_elements(rounded_similarity),
+    rounded_similarity = torch.round(rounded_similarity,
                              decimals=2)        
 
     return rounded_similarity
@@ -106,8 +105,9 @@ def get_emb_cosine_multiple_dataframe(df,
     
     df_grp[column_to_grp_by] = df_grp[column_to_grp_by].astype(int)
     df[column_to_grp_by] = df[column_to_grp_by].astype(int)
-
+    
     df_all = pd.DataFrame()
+    df_grp_all = []
 
     for index, row in df_grp.iterrows():
         print(f'***** Start index: {index} ******')
@@ -121,16 +121,19 @@ def get_emb_cosine_multiple_dataframe(df,
             upper_triangular = rounded_similarity[np.triu_indices(
                 rounded_similarity.shape[0],
                 k=1)]
-        
-            df_grp['cosine_similarity'] = upper_triangular
-            df_all = pd.concat([df_all, df_grp[[column_to_grp_by,
-                                                'cosine_similarity']]
-                               ])
+            
+            df_grp_all.append(upper_triangular.tolist())
         else:
-            df_sample['cosine_similarity'] = rounded_similarity.tolist()
+            df_sample['cosine_similarity'] = remove_diagonal_elements(rounded_similarity).tolist()
             df_all = pd.concat([df_all, df_sample])
+            
+            
+    if upper_triangle_flag == False:
+        return df_all
         
-    return df_all
+    df_grp['cosine_similarity'] = df_grp_all
+    
+    return df_grp
 
     
 def get_sentence_embedding(sentences,
