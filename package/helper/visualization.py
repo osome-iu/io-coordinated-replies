@@ -77,6 +77,9 @@ def ccdf(parameters):
 
         i = i + 1
         
+    if parameters['complementary'] == True:
+        parameters['ylabel'] = 'CCDF'
+        
     ax.set_xlabel(parameters['xlabel'], 
                   fontsize=fontsize)
     ax.set_ylabel(parameters['ylabel'], 
@@ -99,9 +102,9 @@ def ccdf(parameters):
                   fancybox=True, 
                   shadow=True, ncol=3)
     
-    if 'log_yscale' in keys:
+    if 'log_yscale' in keys and parameters['log_yscale'] == True:
         ax.set_yscale('log')
-    if 'log_xscale' in keys:
+    if 'log_xscale' in keys and parameters['log_xscale'] == True:
         ax.set_xscale('log')
         
     if 'title' in keys:
@@ -110,8 +113,10 @@ def ccdf(parameters):
     if 'save' in keys:
         path = parameters['save']['path']
         filename = parameters['save']['filename']
-        
-        fig.savefig(f'{path}/{filename}', 
+        print(f'{path}/{filename}')
+        fig_path = os.path.join(path, filename)
+        print(fig_path)
+        fig.savefig(fig_path, 
               facecolor='white', 
               transparent=False)
         
@@ -140,11 +145,10 @@ def bar_single_plot(parameters):
     data = parameters['data']
     x_index = np.arange(len(data))
     x = parameters['x']
-    data[x] = data[x].astype(str)
+    # data[x] = data[x].astype(str)
     
     for i, columns in enumerate(parameters['columns']):
         temp_column = parameters['columns'][i]['column']
-        
         ax.bar(x_index, data[temp_column], 
                  # align='center', 
                  alpha=0.5,
@@ -154,16 +158,17 @@ def bar_single_plot(parameters):
                  # linewidth=2
                 )
         
-        if parameters['columns'][i]['mean'] == True:
-            ax.axhline(round(data[temp_column].mean(), 2),
-                       color=colors[i],
-                       linewidth=2
-                      )
-            ax.axhline(round(data[temp_column].median(), 2),
-                       color=colors[i],
-                       marker='+',
-                       linewidth=5
-                      )
+        if 'mean' in parameters['columns'][i]:
+            if (parameters['columns'][i]['mean'] == True):
+                ax.axhline(round(data[temp_column].mean(), 2),
+                           color=colors[i],
+                           linewidth=2
+                          )
+                ax.axhline(round(data[temp_column].median(), 2),
+                           color=colors[i],
+                           marker='+',
+                           linewidth=5
+                          )
         
     ax.set_ylabel(parameters['ylabel'], fontsize=fontsize)
     ax.set_xlabel(parameters['xlabel'], fontsize=fontsize)
@@ -176,7 +181,11 @@ def bar_single_plot(parameters):
     ax.xaxis.set_tick_params(labelbottom=True)
     ax.yaxis.set_tick_params(labelbottom=True)
 
-    # ax.set_yscale('log')
+    if parameters['log_yscale'] == True:
+        ax.set_yscale('log')
+    if parameters['log_xscale'] == True:
+        ax.set_xscale('log')
+
     ax.legend(loc=parameters['legend_location'], frameon=True, 
               fontsize=fontsize)
     title = parameters['title']
@@ -192,13 +201,14 @@ def bar_single_plot(parameters):
     else:
         plt.show()
     
-    save_path = parameters['save']['path']
-    filename = parameters['save']['filename']
-    
-    fig.savefig(f'{save_path}/{filename}.png', 
-          facecolor='white', 
-          transparent=False)
-    
+    if 'save' in parameters:
+        save_path = parameters['save']['path']
+        filename = parameters['save']['filename']
+
+        fig.savefig(f'{save_path}/{filename}.png', 
+              facecolor='white', 
+              transparent=False)
+
 
     
 def boxplot(parameters):
@@ -769,13 +779,14 @@ def plot_histogram(parameters):
               fontsize=fontsize
              )
     
-    plot_path = parameters['save']['path']
-    title = parameters['save']['filename']
-    
-    path = os.path.join(plot_path, title)
-    fig.savefig(f'{path}', 
-              facecolor='white', 
-              transparent=False)
+    if 'save' in parameters:
+        plot_path = parameters['save']['path']
+        title = parameters['save']['filename']
+
+        path = os.path.join(plot_path, title)
+        fig.savefig(f'{path}', 
+                  facecolor='white', 
+                  transparent=False)
     plt.show()
     
     
@@ -984,3 +995,336 @@ def time_series_bar_plot(parameters):
 
         
 
+def kde(parameters):
+    '''
+    Plots ccdf for data
+    
+    :param parameters: parameters to set for the plot
+    '''
+    
+    # {
+    #     'data': df,
+    #     'fontsize': 14,
+    #     'complementary': True,
+    #     'columns': [
+    #         {'column': ''
+    #          'label': '',
+    #         },{
+    #         'column': '',
+    #          'label': ''
+    #         }
+    #     ],
+    #     'xlabel': '',
+    #     'ylabel': '',
+    #     'legend_location': '',
+    #     'log_yscale': True,
+    #     'log_xscale': True,
+    #     'save': {
+    #         'path': '',
+    #         'filename': ''
+    #     },
+        # 'random_color': False
+    # }
+    
+    keys = parameters.keys()
+    fig, ax = plt.subplots(figsize=(8, 8))
+    fontsize = parameters['fontsize']
+    colors = ['red', 'blue', 'green', 'orange', 'olive', 'pink', 'lime', 'maroon']
+    total_columns = len(parameters['columns'])
+    
+    if parameters['random_color'] == True:
+        all_colors =  [k for k,v in pltc.cnames.items()]
+        colors = sample(all_colors, total_columns)
+    
+    symbols = ['.', 'o', '+', 'x', '*', 'v', '^', '>']
+    
+    i = 0
+    cmap = plt.cm.get_cmap('hsv', total_columns)
+    
+    for data in parameters['data']:
+        column = parameters['columns'][i]['column']
+        data = parameters['data'][i][column]
+        label = parameters['columns'][i]['label']
+            
+        sns.kdeplot(data, 
+                     # complementary=parameters['complementary'],
+                     label=label,
+                     # marker=symbols[i],
+                     color=colors[i],
+                     ax=ax,
+                     linewidth=2,)
+
+        i = i + 1
+        
+    ax.set_xlabel(parameters['xlabel'], 
+                  fontsize=fontsize)
+    ax.set_ylabel(parameters['ylabel'], 
+                  fontsize=fontsize)
+
+    ax.tick_params(axis='both', labelsize=fontsize) 
+    
+    if 'legend_location' in keys:
+        ax.legend(loc=parameters['legend_location'], 
+                  frameon=True, fontsize=fontsize)
+        
+    if 'legend_lower' in keys:
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                         box.width, box.height * 0.9])
+
+        # Put a legend below current axis
+        ax.legend(loc='upper center', 
+                  bbox_to_anchor=(1, -0.06),
+                  fancybox=True, 
+                  shadow=True, ncol=3)
+    
+    if 'log_yscale' in keys and parameters['log_yscale'] == True:
+        ax.set_yscale('log')
+    if 'log_xscale' in keys and parameters['log_xscale'] == True:
+        ax.set_xscale('log')
+        
+    if 'title' in keys:
+        plt.title(parameters['title'])
+
+    if 'save' in keys:
+        path = parameters['save']['path']
+        filename = parameters['save']['filename']
+        print(f'{path}/{filename}')
+        fig_path = os.path.join(path, filename)
+        print(fig_path)
+        fig.savefig(fig_path, 
+              facecolor='white', 
+              transparent=False)
+        
+    plt.show()
+    
+    
+    
+
+def bar_graph(parameters):
+    '''
+    Plots the bar graph
+    '''
+    
+    # parameters =  {
+    #     'fontsize': 14,
+    #     'size': (10, 12),
+    #     'bar': 'h',
+    #     'x': x,
+    #     'y': y,
+    #     'xlabel': 'Number of targets (Egypt_022020 campaign)', 
+    #     'ylabel': 'Countries',
+    #     'legend_location': '',
+    #     # 'labelrotation': 90,
+    #     # 'title': 'Egypt_022020',
+    #     'save': {
+    #         'path': reply_plot_path,
+    #         'filename': 'egypt_022020_target_country.png'
+    #     },
+    #     'random_color': False
+    # }
+    
+    keys = parameters.keys()
+    
+    if 'size' in keys:
+        size = parameters['size']
+    else:
+        size = (8, 8)
+        
+    
+    fig, ax = plt.subplots(figsize=size)
+        
+    fontsize = parameters['fontsize']
+    colors = ['red', 'blue', 'orange', 'red', 'olive', 
+              'pink', 'lime', 'maroon']
+    
+    x = parameters['x']
+    y = parameters['y']
+    
+    if ('bar' in keys) and parameters['bar'] == 'h':
+        print('here')
+        ax.barh(x,
+               y, 
+               alpha=0.5,
+               color=colors[1],
+                )
+    else:
+        ax.bar(x,
+           y, 
+           alpha=0.5,
+           color=colors[1],
+            )
+        
+    ax.set_ylabel(parameters['ylabel'], fontsize=fontsize)
+    ax.set_xlabel(parameters['xlabel'], fontsize=fontsize)
+
+
+    ax.tick_params(axis='both', which='both', 
+                   labelsize=14, labelbottom=True)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.yaxis.set_tick_params(labelbottom=True)
+
+    if 'title' in keys:
+        title = parameters['title']
+        ax.set_title(f'{title}')
+
+    if ('labelrotation' in keys) and parameters['labelrotation'] != None:
+        labelrotation = parameters['labelrotation']
+    else:
+        labelrotation = None
+        
+    ax.tick_params(axis='x', labelrotation=labelrotation)
+    
+    ax.spines['top'].set_color('none')
+    ax.spines['right'].set_color('none')
+#     ax.spines['bottom'].set_color('none')
+#     ax.spines['left'].set_color('none')
+    fig.tight_layout()
+
+    if 'show' in keys and parameters['show'] == False:
+        plt.close()
+    else:
+        plt.show()
+    
+    if 'save' in keys:
+        save_path = parameters['save']['path']
+        filename = parameters['save']['filename']
+
+        fig.savefig(f'{save_path}/{filename}', 
+              facecolor='white', 
+              transparent=False)
+        
+        
+        
+        
+def line_plot(parameters):
+    '''
+    Plots ccdf for data
+    
+    :param parameters: parameters to set for the plot
+    '''
+    
+    # {
+    #     'data': df,
+    #     'fontsize': 14,
+    #     'complementary': True,
+    #     'columns': [
+    #         {'column': ''
+    #          'label': '',
+    #         },{
+    #         'column': '',
+    #          'label': ''
+    #         }
+    #     ],
+        # 'x': '',
+    #     'xlabel': '',
+    #     'ylabel': '',
+    #     'legend_location': '',
+    #     'log_yscale': True,
+    #     'log_xscale': True,
+    #     'save': {
+    #         'path': '',
+    #         'filename': ''
+    #     },
+        # 'random_color': False
+    # }
+    
+    keys = parameters.keys()
+    fig, ax = plt.subplots(figsize=(8, 8))
+    fontsize = parameters['fontsize']
+    colors = ['red', 'blue', 'black', 'orange', 'olive', 'pink', 'lime', 'maroon']
+    total_columns = len(parameters['columns'])
+    
+    if parameters['random_color'] == True:
+        all_colors =  [k for k,v in pltc.cnames.items()]
+        colors = sample(all_colors, total_columns)
+    
+    symbols = ['.', 'o', '+', 'x', '*', 'v', '^', '>']
+    
+    i = 0
+    cmap = plt.cm.get_cmap('hsv', total_columns)
+    x = parameters['data'][parameters['x']]
+    for i, column in enumerate(parameters['columns']):
+        data = parameters['data'][column['column']]
+        label = column['label']
+            
+        ax.plot(x,
+                data, 
+                     # complementary=parameters['complementary'],
+                 label=label,
+                 marker=symbols[i],
+                 color=colors[i],
+                 # ax=ax,
+                 linewidth=1,
+                markersize=6
+               )
+
+    if 'x_ticks' in keys:
+        labels = parameters['data'][parameters['x_ticks']].tolist()
+        plt.xticks(x)
+        
+        ax.set_xticklabels(labels, fontsize=fontsize + 2)
+    
+    ax.set_xlabel(parameters['xlabel'], 
+                  fontsize=fontsize + 2)
+    ax.set_ylabel(parameters['ylabel'], 
+                  fontsize=fontsize + 2)
+
+    ax.tick_params(axis='both', labelsize=fontsize) 
+    
+    if 'legend_location' in keys:
+        ax.legend(loc=parameters['legend_location'], 
+                  frameon=True, fontsize=fontsize)
+        
+    if 'legend_lower' in keys:
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                         box.width, box.height * 0.9])
+
+        # Put a legend below current axis
+        ax.legend(loc='upper center', 
+                  bbox_to_anchor=(1, -0.06),
+                  fancybox=True, 
+                  shadow=True, ncol=3)
+    
+    if 'log_yscale' in keys and parameters['log_yscale'] == True:
+        ax.set_yscale('log')
+    if 'log_xscale' in keys and parameters['log_xscale'] == True:
+        ax.set_xscale('log')
+        
+    if 'title' in keys:
+        plt.title(parameters['title'])
+
+    if 'save' in keys:
+        path = parameters['save']['path']
+        filename = parameters['save']['filename']
+        print(f'{path}/{filename}')
+        fig_path = os.path.join(path, filename)
+        print(fig_path)
+        fig.savefig(fig_path, 
+              facecolor='white', 
+              transparent=False)
+        
+    plt.show()
+    
+    
+    
+def word_cloud(word_list, filename=None):
+    from wordcloud import WordCloud
+
+    text = ' '.join(word_list)
+
+    wordcloud = WordCloud(
+        width=800,
+        height=400,
+        background_color='white',  
+        colormap='viridis',
+    ).generate(text)
+
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    plt.show()
+    
+    if filename != None:
+        wordcloud.to_file(filename)
