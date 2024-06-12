@@ -26,6 +26,11 @@ from sklearn.metrics import auc
 
 from scipy.stats import ks_2samp
 from scipy.stats import mannwhitneyu
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_recall_fscore_support
+
+from sklearn.model_selection import cross_validate
+
 
 
 def mann_whitneyu_test(data1, data2):
@@ -165,26 +170,33 @@ def entropy(data):
 def all_stat(df, 
              column_to_groupby='poster_tweetid',
              column_to_take='age',
-             label='tweet_label'
+             label='tweet_label',
+             list_data=False
             ):
     '''
     Calculates the summary statistics of dataframe
     '''
-    
-    list_column = f'list_{column_to_take}'
-    df_stat = (df
-               .groupby([column_to_groupby])[column_to_take]
-               .apply(list)
-               .to_frame(list_column)
-               .reset_index()
-              )
-    
+    if list_data == False:
+        list_column = f'list_{column_to_take}'
+
+        df_stat = (df
+                   .groupby([column_to_groupby])[column_to_take]
+                   .apply(list)
+                   .to_frame(list_column)
+                   .reset_index()
+                  )
+    else:
+        list_column = column_to_take
+        df_stat = df
+        df = df.explode(column_to_groupby)
+        
     df_des = (df
           .groupby([column_to_groupby])[column_to_take]
           .describe()
            # .to_frame()
           .reset_index()
          )
+    print(df_des.head())
     
     df_des = df_des.rename(columns={
         'count': f'count_{column_to_take}',
@@ -198,6 +210,9 @@ def all_stat(df,
         '75%': f'75%_{column_to_take}'
     })
     
+    if label == 'replier_label':
+        df_des[f'std_{column_to_take}'] = df_des[f'std_{column_to_take}'] + 1
+        
     df_des = df_des.drop([f'count_{column_to_take}'], 
                          axis=1)
     
@@ -213,7 +228,7 @@ def all_stat(df,
           .to_frame(f'kurtosis_{column_to_take}')
           .reset_index()
          )
-    
+
     df_group = df_des.merge(df_skew, 
                              on=column_to_groupby)
     df_group = df_group.merge(df_kurtosis,
@@ -237,8 +252,8 @@ def all_stat(df,
     
     ) 
     #Variance
-    df_stat[f'var_{column_to_take}'] = df_stat[list_column].apply(
-        lambda x: np.var(np.array(x)))
+    # df_stat[f'var_{column_to_take}'] = df_stat[list_column].apply(
+    #     lambda x: np.var(np.array(x)))
     
     # Coefficient of variation
     # df_stat[f'cof_{column_to_take}'] = df_stat[list_column].apply(
@@ -264,8 +279,46 @@ def all_stat(df,
                                        label]],
                               on=column_to_groupby)
     
+    df_group = df_group.drop([list_column], 
+                             axis=1)
+    
     return df_group
 
+
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+def threshold_search(lr_probs, y_test):
+    thresholds = np.linspace(0, 1, 100)
+
+    best_threshold = 0
+    best_score = 0
+
+    # Iterate over the threshold values and evaluate the classifier at each threshold
+    for threshold in thresholds:
+        # Convert probabilities to binary predictions using the threshold
+        y_pred = (lr_probs[:, 1] > threshold).astype(int)
+
+        # Calculate the evaluation metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+
+        # Calculate a single score to compare different thresholds
+        score = 2 * precision * recall / (precision + recall)
+
+        # Update the best threshold and score if a better threshold is found
+        if score > best_score:
+            best_threshold = threshold
+            best_score = score
+
+    # Print the best threshold and corresponding performance
+    print("Best Threshold:", best_threshold)
+    print("Best F1 Score:", best_score)
+    
+    
+    return best_threshold
 
 
 def run_model(df,
@@ -273,7 +326,10 @@ def run_model(df,
               model_type='random', 
               pca=False,
               y_column = 'tweet_label',
-              filename=None
+              filename=None,
+              just_f1=False,
+              find_threshold=True,
+              all_train=False
              ):
     '''
     Trains the model and prints the result
@@ -282,23 +338,59 @@ def run_model(df,
     :param pca: Whether to do PCA or not
     :param columns_not_include: columns to not include
     '''
-    print(df.columns)
-          
+    print(f'\n **** {model_type} ****')
+    
+    import pickle
+
+    model_filename =' k' #'user_classifier_without_pca_ran.sav'
+        
+    # print(df.columns)
+    # name = columns_not_include[0].split('_')[1]
+    
     columns_not_include.extend(
         ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label'])
     
     columns_to_keep = list(set(df.columns) - set(columns_not_include))
     
+    # if just_f1 == False:
+    #     for x_col in columns_to_keep:
+    #         print(x_col)
+
     X = df[columns_to_keep]
     y = df[y_column]
-
+    
+    # if just_f1 == True:
+    # print('Columns: ', len(columns_to_keep))
+    
+    if 'mean_tensor' in columns_to_keep:
+        t = df['mean_tensor'].tolist()
+        t = torch.stack(t)
+        t = t[:, :100]
+        
+        # print(len(columns_to_keep))
+        columns_to_keep.remove('mean_tensor')
+        
+#         print(columns_to_keep)
+        
+#         print('after :', len(columns_to_keep))
+#         print('columns_to_keep: ', columns_to_keep)
+        z = df[columns_to_keep]
+        # print(z)
+        k = torch.tensor(z.values)
+        X = torch.cat((t, k), dim=1)
+    else:
+        print(df[y_column].unique())
+        X = df[columns_to_keep]
+        
     #PCA 
     scaler = StandardScaler()
+    # print(X)
     X = scaler.fit_transform(X)
     indices = df.index
     
     if pca == True:
         print('here')
+        print(len(columns_to_keep))
         pca = PCA()
 
         # Fit the PCA object to the data and transform the data
@@ -308,7 +400,7 @@ def run_model(df,
     X_train, X_test, y_train, y_test, indices_train, indices_test = train_test_split(X,
                                                                                      y,
                                                                                      indices,
-                                                        # random_state=104, 
+                                                        random_state=104, 
                                                         stratify=y,
                                                         test_size=0.20, 
                                                         shuffle=True)
@@ -321,37 +413,105 @@ def run_model(df,
 
     if model_type == 'logistic':
         model = LogisticRegression(random_state=0)
-
-    if model_type == 'random':
+    elif model_type == 'random':
+        print('Running Random Forest')
         model = RandomForestClassifier(n_estimators=100, 
-                                       random_state=42
-                                      )
+                                   random_state=42
+                                  )
+    elif model_type == 'ada':
+        from sklearn.ensemble import AdaBoostClassifier
+        model = AdaBoostClassifier(n_estimators=100,
+                                 algorithm="SAMME", random_state=0)
+    elif model_type == 'tree':
+        from sklearn import tree
+        model = tree.DecisionTreeClassifier(random_state=0)
+    elif model_type == 'naive':
+        from sklearn.naive_bayes import GaussianNB
+        model = GaussianNB()
 
+    if all_train == True:
+        X_train = X
+        y_train = y
+        
     model.fit(X_train, y_train)
     
-    print(model.score(X_train, y_train))
+    if all_train == True:
+        return model
+            
+            # pickle.dump(model, open(model_filename, 'wb'))
+    
+    # print(model.score(X_train, y_train))
 
     y_pred = model.predict(X_test)
 
-    result = classification_report(y_test, y_pred, labels=[0,1])
+    result = classification_report(y_test, y_pred, 
+                                   labels=[0,1])
+    prf_1 = precision_recall_fscore_support(y_test, 
+                                y_pred,
+                                average='binary',
+                                pos_label=1
+                               )    
+    # print(result)
+    prf_0 = precision_recall_fscore_support(y_test, 
+                                y_pred,
+                                average='binary',
+                                pos_label=0
+                               )    
+    cm = confusion_matrix(y_test, y_pred)
 
-    print(result)
+    # print(cm)
     
     #Cross validation
-    scores = cross_val_score(model, X_train, y_train, cv=5)
-    mean_score = round(scores.mean(), 2)
-    std_score = round(scores.std(), 2)
+    scoring = {'precision', 
+               'recall',
+               'f1',
+               'roc_auc'
+              }
+
+    scores = cross_validate(model, X, y, scoring=scoring, cv=10)
     
-    print(f'Cross validation: mean {mean_score} accuracy with a standard deviation of {std_score}')
+    mean_score_f1 = round(scores['test_f1'].mean(), 2)
+    std_score_f1 = round(scores['test_f1'].std(), 2)
+    
+    mean_score_precision = round(scores['test_precision'].mean(), 2)
+    std_score_precision = round(scores['test_precision'].std(), 2)
+    
+    mean_score_recall = round(scores['test_recall'].mean(), 2)
+    std_score_recall = round(scores['test_recall'].std(), 2)
+    
+    mean_score_auc = round(scores['test_roc_auc'].mean(), 2)
+    std_score_auc = round(scores['test_roc_auc'].std(), 2)
+    
+    print(f'Cross validation: mean {mean_score_f1} f1 with a standard deviation of {std_score_f1}')
+    
+    print(f'Cross validation: mean {mean_score_precision} precision with a standard deviation of {std_score_precision}')
+    
+    print(f'Cross validation: mean {mean_score_recall} recall with a standard deviation of {std_score_recall}')
+    
+    print(f'Cross validation: mean {mean_score_auc} auc with standard deviation of {std_score_auc}')
+    
+    # auc_pr = round(average_precision_score(y_test, lr_probs[:,1]), 2)
+    
+    final_score = {
+            'mean_f1': mean_score_f1,
+            'mean_precision': mean_score_precision,
+            'mean_recall': mean_score_recall,
+            'mean_auc': mean_score_auc,
+            # 'auc_pr': auc_pr
+    }
     
     #feature importance
-    if model_type == 'random' and pca == False:
-        importances = model.feature_importances_
-        df_imp = pd.DataFrame({'Feature': columns_to_keep, 
-                                    'Importance': model.feature_impofrtances_})
-        df_imp = df_imp.sort_values('Importance', 
-                                         ascending=False).set_index('Feature')
-        print(df_imp)
+#     flag_imprt = (model_type == 'random') and (pca == False) and (feat_importance == True)
+    
+#     if flag_imprt:
+#         model, X_test, y_test,
+        # df_imp = pd.DataFrame({
+        #     'Feature': columns_to_keep, 
+        #     'Importance': model.feature_importances_})
+        # df_imp = df_imp.sort_values('Importance', 
+        #                                  ascending=False).set_index('Feature')
+        # print(df_imp.head(10))
+        # df_imp.to_pickle('feat_importance_without_pca.pkl.gz')
 
     #ROC curve
     lr_probs = model.predict_proba(X_test)
@@ -362,20 +522,21 @@ def run_model(df,
     roc_auc = auc(fpr, tpr)
     
     # Plot the ROC curve
-    fig, ax = plt.subplots(figsize=(8,8))
-    ax.plot(fpr, tpr, color='darkorange', 
-             lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    ax.plot([0, 1], [0, 1], color='navy', 
-             lw=2, linestyle='--')
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.05])
-    ax.set_xlabel('False Positive Rate')
-    ax.set_ylabel('True Positive Rate')
-    ax.set_title('Receiver Operating Characteristic (ROC) Curve')
-    ax.legend(loc="lower right")
-    plt.show()
+    # fig, ax = plt.subplots(figsize=(8,8))
+    # ax.plot(fpr, tpr, color='darkorange', 
+    #          lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    # ax.plot([0, 1], [0, 1], color='navy', 
+    #          lw=2, linestyle='--')
+    # ax.set_xlim([0.0, 1.0])
+    # ax.set_ylim([0.0, 1.05])
+    # ax.set_xlabel('False Positive Rate')
+    # ax.set_ylabel('True Positive Rate')
+    # ax.set_title(f'Receiver Operating Characteristic (ROC) Curve ')
+    # ax.legend(loc="lower right")
+    # plt.show()
 
-    fig.savefig(f'{filename}')
+    if filename != None:
+        fig.savefig(f'{filename}')
     
     from sklearn.metrics import precision_recall_curve
 
@@ -384,16 +545,21 @@ def run_model(df,
                                                         lr_probs[:, 1])
 
     # plot the precision-recall curve
-    plt.plot(recall, precision)
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.title('Precision-Recall Curve')
-    plt.show()
+    # plt.plot(recall, precision)
+    # plt.xlabel('Recall')
+    # plt.ylabel('Precision')
+    # plt.title('Precision-Recall Curve')
+    # plt.show()
     
     df_pred = df.loc[indices_test]
-    df_pred['pred'] = y_pred
+    # df_pred['pred'] = y_pred
     
-    return df_pred
+    if find_threshold == True:
+        threshold = threshold_search(lr_probs, y_test)
+        
+        return model, df_pred, roc_auc, prf_1, prf_0, mean_score_f1, std_score_f1, threshold, final_score
+    
+    return model, df_pred, roc_auc, prf_1, prf_0, mean_score_f1, std_score_f1, final_score
 
 
 def KS_test(data1, data2):
@@ -645,5 +811,267 @@ def limit_statistics(df,
     # df_group = df_group.fillna(0)
     
     return df_group
-    
 
+
+
+
+def run_imbalanced_model(
+    df,
+    columns_not_include=[],
+    y_column = 'replier_label',
+    model_type='random',
+    threshold_search=False,
+    k=10
+):
+    
+    '''
+    Performs random forest classification for 
+    :param df: Dataframe
+    :param columns_not_include: columns to not include in classification
+    :param y_column: target column
+    :param roc_filename: filename of roc curve plot
+    :param cross_validation_file: file to save the cross validation result
+    '''
+    
+    import pickle
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import classification_report
+    from sklearn.metrics import roc_curve
+    from sklearn.metrics import auc
+    from sklearn.metrics import confusion_matrix
+
+   
+    columns_not_include.extend(
+        ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label']
+    )
+    
+    columns_to_keep = list(set(df.columns) - set(columns_not_include))
+    
+    X = df[columns_to_keep]
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+    indices = df.index
+    
+    y = df[y_column]
+
+    X_train, X_test, y_train, y_test, indices_train, indices_test = train_test_split(
+        X, y, indices,
+        random_state=104, 
+        stratify=y,
+        test_size=0.20, 
+        shuffle=True
+    )
+
+    print('Xtrain: ', len(X_train))
+    print('Xtrain shape: ', X_train.shape)
+    print('Xtest: ', len(X_test))
+    print('Ytrain: ', len(y_train))
+    print('Ytest: ', len(y_test))
+
+    
+    if model_type == 'logistic':
+        model = LogisticRegression(random_state=0)
+    if model_type == 'random':
+        model = RandomForestClassifier(n_estimators=100, 
+                                       random_state=42
+                                      )
+        
+    scoring = {'precision', 
+               'recall',
+               'f1',
+               'roc_auc'
+              }
+    
+    skf = StratifiedKFold(n_splits=k)
+
+    scores = cross_validate(model, X, y, scoring=scoring, cv=skf)
+    
+    mean_score_f1 = round(scores['test_f1'].mean(), 2)
+    std_score_f1 = round(scores['test_f1'].std(), 2)
+    
+    mean_score_precision = round(scores['test_precision'].mean(), 2)
+    std_score_precision = round(scores['test_precision'].std(), 2)
+    
+    mean_score_recall = round(scores['test_recall'].mean(), 2)
+    std_score_recall = round(scores['test_recall'].std(), 2)
+    
+    mean_score_auc = round(scores['test_roc_auc'].mean(), 2)
+    std_score_auc = round(scores['test_roc_auc'].std(), 2)
+    
+    print(f'Cross validation: mean {mean_score_f1} f1 with a standard deviation of {std_score_f1}')
+    
+    print(f'Cross validation: mean {mean_score_precision} precision with a standard deviation of {std_score_precision}')
+    
+    print(f'Cross validation: mean {mean_score_recall} recall with a standard deviation of {std_score_recall}')
+    
+    print(f'Cross validation: mean {mean_score_auc} auc with standard deviation of {std_score_auc}')
+    
+    final_score = {
+            'mean_f1': mean_score_f1,
+            'mean_precision': mean_score_precision,
+            'mean_recall': mean_score_recall,
+            'mean_auc': mean_score_auc
+    }
+    
+    model.fit(X_train, y_train)
+    
+    lr_probs = model.predict_proba(X_test) 
+
+    fpr, tpr, thresholds = roc_curve(y_test, lr_probs[:, 1])
+    
+    if threshold_search == True:
+        thresholds = np.linspace(0, 1, 100)
+
+        best_threshold = 0
+        best_score = 0
+
+        # Iterate over the threshold values and evaluate the classifier at each threshold
+        for threshold in thresholds:
+            # Convert probabilities to binary predictions using the threshold
+            y_pred = (lr_probs[:, 1] > threshold).astype(int)
+
+            # Calculate the evaluation metrics
+            accuracy = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred)
+            recall = recall_score(y_test, y_pred)
+            f1 = f1_score(y_test, y_pred)
+
+            # Calculate a single score to compare different thresholds
+            score = 2 * precision * recall / (precision + recall)
+
+            # Update the best threshold and score if a better threshold is found
+            if score > best_score:
+                best_threshold = threshold
+                best_score = score
+
+        # Print the best threshold and corresponding performance
+        print("Best Threshold:", best_threshold)
+        print("Best F1 Score:", best_score)
+
+    
+    from sklearn.metrics import precision_recall_curve
+
+    precision, recall, thresholds = precision_recall_curve(y_test,
+                                                        lr_probs[:, 1])
+
+    from sklearn.metrics import auc, average_precision_score
+
+    auc_pr = round(average_precision_score(y_test, lr_probs[:,1]), 2)
+    
+    print(f'AUC-PR: {auc_pr}')
+    
+    if threshold_search == True:
+        return final_score, threshold, auc_pr
+    
+    return final_score, auc_pr
+
+
+
+def run_model_with_best_threshold(df,
+              columns_not_include=['list_age'],
+              model_type='random', 
+              y_column = 'tweet_label',
+              filename=None,
+             ):
+    '''
+    Trains the model and prints the result
+    :param df: Dataframe
+    :param model_type: Type of model
+    :param pca: Whether to do PCA or not
+    :param columns_not_include: columns to not include
+    '''
+    print(f'\n **** {model_type} ****')
+    
+    ### Remove unnecessary columns
+    import pickle
+
+    model_filename = filename
+    
+    columns_not_include.extend(
+        ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label'])
+    
+    columns_to_keep = list(set(df.columns) - set(columns_not_include))
+
+    X = df[columns_to_keep]
+    y = df[y_column]
+  
+    ### Choose model
+    if model_type == 'logistic':
+        model = LogisticRegression(random_state=0)
+    elif model_type == 'random':
+        print('Running Random Forest')
+        model = RandomForestClassifier(n_estimators=100, 
+                                   random_state=42
+                                  )
+    elif model_type == 'ada':
+        from sklearn.ensemble import AdaBoostClassifier
+        model = AdaBoostClassifier(n_estimators=100,
+                                 algorithm="SAMME", random_state=0)
+    elif model_type == 'tree':
+        model = tree.DecisionTreeClassifier()
+    elif model_type == 'naive':
+        from sklearn.naive_bayes import GaussianNB
+        model = GaussianNB()
+    
+    ### Choose scoring function
+    from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score, roc_auc_score
+
+    # Creating a dictionary of scorers
+    scoring = {
+        'precision': make_scorer(precision_score, average='binary'),
+        'recall': make_scorer(recall_score, average='binary'),
+        'f1': make_scorer(f1_score, average='binary'),
+        'roc_auc': make_scorer(roc_auc_score, needs_proba=True)
+    }
+
+    cv_scores = [
+        "train_precision",
+        "test_precision",
+        "train_recall",
+        "test_recall",
+        "train_f1",
+        "test_f1",
+        "train_roc_auc",
+        "test_roc_auc",
+    ]
+
+    from sklearn.model_selection import TunedThresholdClassifierCV
+    from sklearn.pipeline import make_pipeline
+    from sklearn.model_selection import RepeatedStratifiedKFold
+    from sklearn.metrics import f1_score
+
+    model = make_pipeline(StandardScaler(), model)
+    cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=42)
+    tuned_model = TunedThresholdClassifierCV(estimator=model,
+                                             scoring='f1',
+                                             store_cv_results = True,
+                                             n_jobs=-1
+                                            )
+
+    cv_results_tuned_model = pd.DataFrame(
+        cross_validate(
+            tuned_model,
+            X,
+            y,
+            scoring=scoring,
+            cv=cv,
+            return_train_score=True,
+            return_estimator=True,
+        )
+    )
+   
+    from sklearn.metrics import f1_score
+
+    decision_threshold = pd.Series(
+        [est.best_threshold_ for est in cv_results_tuned_model["estimator"]],
+    )
+    cv_results_tuned_model['threshold'] = decision_threshold
+    
+    cv_results_tuned_model['algorithm'] = model_type
+    
+    return cv_results_tuned_model
