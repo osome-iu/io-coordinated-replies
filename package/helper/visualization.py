@@ -14,7 +14,8 @@ import difflib
 import json
 import sys
 import os
-
+import math
+import matplotlib.ticker as tck
 
 def ccdf(parameters):
     '''
@@ -48,7 +49,19 @@ def ccdf(parameters):
     # }
     
     keys = parameters.keys()
-    fig, ax = plt.subplots(figsize=(8, 8))
+    if 'figsize' in keys:
+        size = parameters['figsize']
+    else:
+        size = (8,8)
+        
+    fig, ax = plt.subplots(figsize=size)
+    # fig = plt.figure(figsize=size)
+
+    # Add an axes at position [left, bottom, width, height]
+    # where each value is between 0 and 1
+
+    # ax = fig.add_axes([0.2, 0.2, 0.9, 0.9])
+    
     fontsize = parameters['fontsize']
     colors = ['red', 'blue', 'green', 'orange', 'olive', 'pink', 'lime', 'maroon']
     total_columns = len(parameters['columns'])
@@ -61,22 +74,47 @@ def ccdf(parameters):
     
     i = 0
     cmap = plt.cm.get_cmap('hsv', total_columns)
-    
+    max_n = 0
     for data in parameters['data']:
         column = parameters['columns'][i]['column']
         data = parameters['data'][i][column]
         label = parameters['columns'][i]['label']
+        
+        if 'color' in parameters['columns'][i].keys():
+            assigned_color = parameters['columns'][i]['color']
+        else:
+            assigned_color = colors[i]
+        
+        if max_n < max(data):
+            max_n = max(data)
             
         sns.ecdfplot(data, 
                      complementary=parameters['complementary'],
                      label=label,
                      # marker=symbols[i],
-                     color=colors[i],
+                     color=assigned_color,
                      ax=ax,
                      linewidth=2,)
 
         i = i + 1
         
+    if 'log_yscale' in keys and parameters['log_yscale'] == True:
+        ax.set_yscale('log')
+        # ax.yaxis.set_minor_locator(AutoMinorLocator())
+       
+        
+    if 'log_xscale' in keys and parameters['log_xscale'] == True:
+        ax.set_xscale('log')
+        
+        n = int(math.log10(max_n) + 1)
+        all_ticks = []
+        for x in range(0, int(n)):
+            for i in range(1, 10):
+                all_ticks.append(i * (10**x))
+        
+        ax.xaxis.set_minor_locator(tck.FixedLocator(all_ticks))
+
+
     if parameters['complementary'] == True:
         parameters['ylabel'] = 'CCDF'
         
@@ -84,12 +122,31 @@ def ccdf(parameters):
                   fontsize=fontsize)
     ax.set_ylabel(parameters['ylabel'], 
                   fontsize=fontsize)
-
-    ax.tick_params(axis='both', labelsize=fontsize) 
     
+    if 'tick_size' in keys:
+        tick_size = parameters['tick_size']
+    else:
+        tick_size = fontsize
+        
+        
+    ax.tick_params(axis='both', 
+                   which='both', 
+                   labelsize=tick_size,
+                   labelbottom=True
+                  )
+
+    # ax.xaxis.set_minor_locator(tck.AutoMinorLocator())
+
     if 'legend_location' in keys:
+        if 'legend_font' in keys:
+            legend_font = parameters['legend_font']
+        else:
+            legend_font = fontsize
+            
         ax.legend(loc=parameters['legend_location'], 
-                  frameon=True, fontsize=fontsize)
+                  frameon=True, 
+                  fontsize=legend_font
+                 )
         
     if 'legend_lower' in keys:
         box = ax.get_position()
@@ -102,20 +159,36 @@ def ccdf(parameters):
                   fancybox=True, 
                   shadow=True, ncol=3)
     
-    if 'log_yscale' in keys and parameters['log_yscale'] == True:
-        ax.set_yscale('log')
-    if 'log_xscale' in keys and parameters['log_xscale'] == True:
-        ax.set_xscale('log')
-        
+    
+        # ax.xaxis.set_minor_locator(AutoMinorLocator())
+
     if 'title' in keys:
         plt.title(parameters['title'])
-
+        
+        
+    if 'figure_text' in keys:
+        plt.text(parameters['figure_text_x'], 
+                 parameters['figure_text_y'], 
+                 parameters['figure_text'], 
+                 fontsize=parameters['figure_font'],
+                 ha="center", 
+                 va="center", 
+                )
+        
+    if 'subplot_adjust' in keys:
+        plt.subplots_adjust(
+            bottom=parameters['subplot_adjust']
+        )
+   
+    fig.tight_layout()
+    
     if 'save' in keys:
         path = parameters['save']['path']
         filename = parameters['save']['filename']
-        print(f'{path}/{filename}')
         fig_path = os.path.join(path, filename)
+        
         print(fig_path)
+        
         fig.savefig(fig_path, 
               facecolor='white', 
               transparent=False)
@@ -200,7 +273,9 @@ def bar_single_plot(parameters):
         plt.close()
     else:
         plt.show()
-    
+        
+    fig.tight_layout()
+
     if 'save' in parameters:
         save_path = parameters['save']['path']
         filename = parameters['save']['filename']
@@ -238,17 +313,24 @@ def boxplot(parameters):
         
     ax.boxplot(columns)
     
-    ax.tick_params(axis='both', which='major', labelsize=fontsize)
+    if 'yscale' in keys and parameters['yscale'] == True:
+        ax.set_yscale('log')
+        
+    ax.tick_params(axis='x', which='major', labelsize=fontsize)
 
     ax.set_xlabel(parameters['xlabel'], 
                   fontsize=fontsize)
     ax.set_ylabel(parameters['ylabel'], 
                   fontsize=fontsize)
-    title = parameters['title']
-    ax.set_title(f'{title}')
+    
+    if 'title' in keys:
+        title = parameters['title']
+        ax.set_title(f'{title}')
     
     plt.xticks(ticks, labels)
     
+    fig.tight_layout()
+
     if 'save' in keys:
         path = parameters['save']['path']
         filename = parameters['save']['filename']
@@ -1029,7 +1111,7 @@ def kde(parameters):
     keys = parameters.keys()
     fig, ax = plt.subplots(figsize=(8, 8))
     fontsize = parameters['fontsize']
-    colors = ['red', 'blue', 'green', 'orange', 'olive', 'pink', 'lime', 'maroon']
+    colors = ['red', 'blue', 'orange', 'orange', 'olive', 'pink', 'lime', 'maroon']
     total_columns = len(parameters['columns'])
     
     if parameters['random_color'] == True:
@@ -1047,9 +1129,7 @@ def kde(parameters):
         label = parameters['columns'][i]['label']
             
         sns.kdeplot(data, 
-                     # complementary=parameters['complementary'],
                      label=label,
-                     # marker=symbols[i],
                      color=colors[i],
                      ax=ax,
                      linewidth=2,)
@@ -1142,7 +1222,6 @@ def bar_graph(parameters):
     y = parameters['y']
     
     if ('bar' in keys) and parameters['bar'] == 'h':
-        print('here')
         ax.barh(x,
                y, 
                alpha=0.5,
@@ -1158,11 +1237,57 @@ def bar_graph(parameters):
     ax.set_ylabel(parameters['ylabel'], fontsize=fontsize)
     ax.set_xlabel(parameters['xlabel'], fontsize=fontsize)
 
-
-    ax.tick_params(axis='both', which='both', 
-                   labelsize=14, labelbottom=True)
+    if 'tick_size' in keys:
+        tick_size = parameters['tick_size']
+    else:
+        tick_size = fontsize
+        
+    ax.tick_params(axis='both', 
+                   which='both', 
+                   labelsize=tick_size, 
+                   labelbottom=True)
+    
     ax.xaxis.set_tick_params(labelbottom=True)
     ax.yaxis.set_tick_params(labelbottom=True)
+    
+    #######################
+
+    if 'legend_location' in keys:
+        if 'legend_font' in keys:
+            legend_font = parameters['legend_font']
+        else:
+            legend_font = fontsize
+            
+        ax.legend(loc=parameters['legend_location'], 
+                  frameon=True, 
+                  fontsize=legend_font
+                 )
+        
+    if 'legend_lower' in keys:
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                         box.width, box.height * 0.9])
+
+        # Put a legend below current axis
+        ax.legend(loc='upper center', 
+                  bbox_to_anchor=(1, -0.06),
+                  fancybox=True, 
+                  shadow=True, ncol=3)
+    
+    
+        # ax.xaxis.set_minor_locator(AutoMinorLocator())
+
+    if 'figure_text' in keys:
+        plt.text(parameters['figure_text_x'], 
+                 parameters['figure_text_y'], 
+                 parameters['figure_text'], 
+                 fontsize=parameters['figure_font'],
+                 ha="center", 
+                 va="center", 
+                )
+        
+    
+    #######################
 
     if 'title' in keys:
         title = parameters['title']
@@ -1230,7 +1355,14 @@ def line_plot(parameters):
     # }
     
     keys = parameters.keys()
-    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    if 'size' in keys:
+        size = parameters['size']
+    else:
+        size = (8,8)
+        
+    fig, ax = plt.subplots(figsize=size)
+    
     fontsize = parameters['fontsize']
     colors = ['red', 'blue', 'black', 'orange', 'olive', 'pink', 'lime', 'maroon']
     total_columns = len(parameters['columns'])
@@ -1239,7 +1371,7 @@ def line_plot(parameters):
         all_colors =  [k for k,v in pltc.cnames.items()]
         colors = sample(all_colors, total_columns)
     
-    symbols = ['.', 'o', '+', 'x', '*', 'v', '^', '>']
+    symbols = ['x', 'o', '+', '*', '.', 'v', '^', '>']
     
     i = 0
     cmap = plt.cm.get_cmap('hsv', total_columns)
@@ -1255,8 +1387,8 @@ def line_plot(parameters):
                  marker=symbols[i],
                  color=colors[i],
                  # ax=ax,
-                 linewidth=1,
-                markersize=6
+                 linewidth=2,
+                markersize=14
                )
 
     if 'x_ticks' in keys:
@@ -1273,8 +1405,9 @@ def line_plot(parameters):
     ax.tick_params(axis='both', labelsize=fontsize) 
     
     if 'legend_location' in keys:
+        legend_size = parameters['legend_size']
         ax.legend(loc=parameters['legend_location'], 
-                  frameon=True, fontsize=fontsize)
+                  frameon=True, fontsize=legend_size)
         
     if 'legend_lower' in keys:
         box = ax.get_position()
@@ -1291,9 +1424,14 @@ def line_plot(parameters):
         ax.set_yscale('log')
     if 'log_xscale' in keys and parameters['log_xscale'] == True:
         ax.set_xscale('log')
-        
+    
+    ax.set_aspect('auto')
+
     if 'title' in keys:
         plt.title(parameters['title'])
+        
+    plt.ylim([0.5, 1])
+    fig.tight_layout()
 
     if 'save' in keys:
         path = parameters['save']['path']
@@ -1309,22 +1447,175 @@ def line_plot(parameters):
     
     
     
-def word_cloud(word_list, filename=None):
+def word_cloud(word_list,
+               parameters=None, 
+               filename=None):
     from wordcloud import WordCloud
 
     text = ' '.join(word_list)
 
     wordcloud = WordCloud(
-        width=800,
-        height=400,
+        width=1000,
+        height=1000,
         background_color='white',  
         colormap='viridis',
+        collocations=False
     ).generate(text)
 
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.show()
+    if parameters != None and 'size' in parameters:
+        size=parameters['size']
+    else:
+        size = (10,10)
+        
+    fig, ax = plt.subplots(figsize=size)
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
     
     if filename != None:
-        wordcloud.to_file(filename)
+        # wordcloud.to_file(filename)
+        fig.tight_layout()
+
+        
+        fig.savefig(filename, 
+              facecolor='white', 
+              transparent=False)
+
+    plt.show()
+        
+        
+        
+def grouped_boxplot(parameters):
+    '''
+    Plots the boxplot by grouping
+    '''
+    # parameters = {
+    #     'data': [df_all_pos_men, df_all_neg_men],
+    #     'fontsize': 14,
+    #     'complementary': True,
+    #     'columns': [
+    #         {'column': 'followers_count',
+    #          'label': 'Follower',
+    #         },{
+    #         'column': 'followers_count',
+    #          'label': 'Following'
+    #         }
+    #     ],
+    #     'group': ['IO-replier', 'Normal-replier'],
+    #     'xlabel': 'Replier',
+    #     'ylabel': 'Log(x)',
+    #     'legend_location': '',
+    #     'yscale': True,
+    #     'save': {
+    #         'path': './plots',
+    #         'filename': 'boxplot_follower_following_IO_normal.png'
+    #     },
+    #     'random_color': False
+    # }
+    
+    if 'size' in parameters:
+        size = parameters['size']
+    else:
+        size=(8,8)
+        
+    keys = parameters.keys()
+    fig, ax = plt.subplots(figsize=size)
+    fontsize = parameters['fontsize']
+    data = parameters['data']
+    
+    columns = {}
+    labels = {}
+    for i, df in enumerate(data):
+        columns[i] = {
+            'column': [],
+            'label': []
+        }
+        
+        for j, row in enumerate(parameters['columns']):
+            column = row['column']
+            label = row['label']
+            
+            if 'log_yscale' in keys and parameters['log_yscale'] == True:
+                add = 1
+            else:
+                add = 0
+                
+            df[column] = df[column] + add
+            
+            columns[i]['column'].append(df[column])
+            columns[i]['label'].append(label)
+        
+    ticks = range(len(parameters['columns']))
+        
+    def define_box_properties(plot_name, color_code, label):
+        for k, v in plot_name.items():
+            plt.setp(plot_name.get(k), color=color_code)
+
+        # use plot function to draw a small line to name the legend.
+        plt.plot([], c=color_code, label=label)
+        plt.legend()
+        
+        
+    plots = []
+    for i in range(len(columns)):
+        data1 = columns[i]['column']
+               
+        position = np.array(
+                   np.arange(len(data1)))*2.0
+        
+        if i == 0:
+            position = position - 0.35
+        else:
+            position = position + 0.35
+            
+        plot1 = ax.boxplot(data1,
+                       positions=position, 
+                       widths=0.6,
+                       # showfliers=False
+                          )
+        plots.append(plot1)
+        
+        
+    colors  = ['red', 'blue', 'black']
+    if 'group' in keys:
+        for i, plot in enumerate(plots):
+            define_box_properties(plot, 
+                                  colors[i], 
+                                  parameters['group'][i])
+        # define_box_properties(plot2, 'blue', 'Winter')
+
+    
+    if 'yscale' in keys and parameters['yscale'] == True:
+        if 'ybase' in keys:
+            ybase = parameters['ybase']
+        else:
+            ybase = 10
+        ax.set_yscale('log', base=ybase)
+        
+    ax.tick_params(axis='x', which='major', labelsize=fontsize)
+
+    ax.set_xlabel(parameters['xlabel'], 
+                  fontsize=fontsize)
+    ax.set_ylabel(parameters['ylabel'], 
+                  fontsize=fontsize)
+    
+    if 'title' in keys:
+        title = parameters['title']
+        ax.set_title(f'{title}')
+    
+    plt.xticks(np.arange(0, len(ticks) * 2, 2), columns[0]['label'])
+ 
+    # set the limit for x axis
+    plt.xlim(-2, len(ticks)*2)
+    
+    fig.tight_layout()
+
+    if 'save' in keys:
+        path = parameters['save']['path']
+        filename = parameters['save']['filename']
+        
+        fig.savefig(f'{path}/{filename}', 
+              facecolor='white', 
+              transparent=False)
+        
+    plt.show()
+    

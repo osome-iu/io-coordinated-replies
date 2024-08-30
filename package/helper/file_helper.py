@@ -1,6 +1,7 @@
 import glob
 import os
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def change_extension_of_file(path,
                              search_extension, 
@@ -161,3 +162,170 @@ def split_into_files(input_file,
                                            )
 
         index = index + 1
+        
+        
+        
+def convert_to_docx(df, 
+                    columns, 
+                    filename):
+    '''
+    Converts dataframe to docx
+    :param df: Dataframe to save
+    :param columns: Name of columns to use in dataframe
+    :param filename: Name of file to sav
+    
+    :return None
+    '''
+    
+    from docx import Document
+
+    doc = Document()
+
+    df = df[columns]
+    for index, row in df.iterrows():
+        all_text = ''
+        for index, column in enumerate(columns):
+            text = row[column]
+            if index == 0:
+                all_text = text
+                continue
+                
+            all_text = all_text + '***' + text
+            
+        doc.add_paragraph(f'[{all_text}]')
+
+    doc.save(filename)
+    
+    
+def convert_docx_to_csv(filename,
+                        columns,
+                        save_filename,
+                        to='csv'
+                      ):
+    '''
+    Converts the docx file into dataframe. 
+    This function supports only two column to save
+    :param filename : Docx filename to load
+    :param columns: Name of columns for dataframe
+    :param save_filename: Name of the file to save as
+    :param to: Convert to the file form
+    
+    :return None
+    '''
+    from docx import Document
+
+    doc = Document(filename)
+    open_brac = '['
+    closing_brac = ']'
+
+    all_element = []
+    print('Total data : ', len(doc.paragraphs))
+    for p in doc.paragraphs:
+        if p.text.strip() != "":
+            element_list = (p.text).split('***')
+
+            if len(element_list) == 1:
+                continue
+
+            element_list[0] = element_list[0].replace(open_brac, "")
+            element_list[0] = element_list[0].replace(' ', "")
+            element_list[1] = element_list[1].replace(closing_brac, "")
+
+            if len(element_list) > 2:
+                list_string = ' '.join(element_list[1:])
+                element_list[1]  = list_string.replace('*', "")
+
+            all_element.append([element_list[0], element_list[1]])
+
+
+    df = pd.DataFrame(all_element, columns=columns)
+    
+    if to == 'csv':
+        df.to_csv(save_filename,
+                  index=False
+                 )
+    else:
+        df.to_pickle(save_filename)
+        
+    print('Total data after dataframe formation: ', len(df))
+    
+    
+def convert_to_docx(df, 
+                    columns, 
+                    filename):
+    '''
+    Converts dataframe to docx
+    :param df: Dataframe to save
+    :param columns: Name of columns to use in dataframe
+    :param filename: Name of file to sav
+    
+    :return None
+    '''
+    
+    from docx import Document
+
+    doc = Document()
+
+    df = df[columns]
+    for index, row in df.iterrows():
+        all_text = ''
+        for column in columns:
+            text = row[column]
+            all_text = all_text + '***' + text
+            
+        doc.add_paragraph(f'[{all_text}]')
+
+    doc.save(filename)
+    
+    
+    
+def convert_docx_to_csv(filename,
+                       columns,
+                       save_filename,
+                        to='csv'
+                      ):
+    '''
+    Converts the docx file into dataframe. 
+    This function supports only two column to save
+    :param filename : Docx filename to load
+    :param columns: Name of columns for dataframe
+    :param save_filename: Name of the file to save as
+    
+    :return None
+    '''
+    from docx import Document
+
+    doc = Document(filename)
+    open_brac = '['
+    closing_brac = ']'
+
+    all_element = []
+    print('Total data : ', len(doc.paragraphs))
+    for p in doc.paragraphs:
+        if p.text.strip() != "":
+            element_list = (p.text).split('***')
+
+            if len(element_list) == 1:
+                continue
+
+            element_list[0] = element_list[0].replace(open_brac, "")
+            element_list[0] = element_list[0].replace(' ', "")
+            element_list[1] = element_list[1].replace(closing_brac, "")
+
+            if len(element_list) > 2:
+                list_string = ' '.join(element_list[1:])
+                element_list[1]  = list_string.replace('*', "")
+
+            all_element.append([element_list[0], element_list[1]])
+
+
+    df = pd.DataFrame(all_element, columns=columns)
+    
+    if to == 'csv':
+        df.to_csv(save_filename,
+                  index=False
+                 )
+    else:
+        df.to_pickle(save_filename)
+        
+    print('Total data after dataframe formation: ', len(df))

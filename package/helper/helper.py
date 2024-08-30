@@ -10,11 +10,30 @@ import re
 import networkx as nx
 import os
 from itertools import combinations
-
+# import torch
 
 '''
 Author: Manita Pote
 '''
+
+def remove_diagonal_elements(matrix):
+    '''
+    Removes the diagonal elements from matrix
+    :param matrix: the matrix in which the diagonal has to be removed
+    
+    :return new matrix
+    '''
+    
+    rows, cols = matrix.shape
+
+    # Create an index tensor to exclude diagonal elements
+    indices = torch.arange(rows)
+
+    # Remove diagonal elements by creating a mask
+    mask = ~indices.unsqueeze(1).eq(indices)
+
+    # Apply the mask to the matrix
+    return matrix[mask].view(rows, cols - 1)
 
 def pickle_open(filename):
     '''
@@ -512,3 +531,176 @@ def get_cosines_within_grp(grps,
     df.to_pickle(save_path)
     
     return df
+
+
+
+def find_tweet_timestamp_post_snowflake(tid):
+    offset = 1288834974657
+    tstamp = (tid >> 22) + offset
+    return tstamp
+
+
+'''
+Returns Tweet Timestamp for pre-Snowflake Tweets
+Success: Returns the estimated timestamp of the tweet
+Failure: Returns -1
+'''
+def find_tweet_timestamp_pre_snowflake(tid):
+    data_directory = os.path.join(os.path.dirname( __file__ ), '..', "data")
+    with open(os.path.join(data_directory, "TweetTimeline.txt"), "r") as file_tweet_timeline:
+        prev_line_parts = file_tweet_timeline.readline().rstrip().split(",")
+        if tid < int(prev_line_parts[0]):
+            return -1
+        elif tid == int(prev_line_parts[0]):
+            return int(prev_line_parts[1]) * 1000
+        else:
+            for line in file_tweet_timeline:
+                line_parts = line.rstrip().split(",")
+                if tid == int(line_parts[0]):
+                    return int(prev_line_parts[1]) * 1000
+                if int(prev_line_parts[0]) < tid < int(line_parts[0]):
+                    estimated_timestamp = round(int(prev_line_parts[1]) + (((tid - int(prev_line_parts[0])) / (int(line_parts[0]) - int(prev_line_parts[0]))) * (int(line_parts[1]) - int(prev_line_parts[1]))))
+                    return estimated_timestamp * 1000
+                else:
+                    prev_line_parts = line_parts
+    return -1
+
+
+'''
+Find timestamp of a tweet
+'''
+def find_tweet_timestamp(tid):
+    pre_snowflake_last_tweet_id = 29700859247
+    if tid < pre_snowflake_last_tweet_id:
+        tweet_timestamp = find_tweet_timestamp_pre_snowflake(tid)
+    else:
+        tweet_timestamp = find_tweet_timestamp_post_snowflake(tid)
+    return tweet_timestamp
+
+
+def get_created_date(time):
+    import datetime
+    
+    tweet_timestamp_ms = find_tweet_timestamp(time)
+    
+    tweet_timestamp_sec = tweet_timestamp_ms / 1000
+
+    # Convert the tweet timestamp to datetime object
+    tweet_created_time = datetime.datetime.utcfromtimestamp(tweet_timestamp_sec)
+
+    # Print the tweet created time
+    return tweet_created_time
+
+
+def convert_to_json(df_org,
+                    column='mediaTypeAttributes',
+                    change_none=True
+                   ):
+    ''' Converts the json values in column into individual columns
+    :param df_org: Original dataframe 
+    :param column: Column that has json values
+    :param change_none: Whether to change the none values
+    '''
+    
+    df = df_org.loc[~df_org[column].isnull()]
+    df['json_string'] = (df[column]
+                         .apply(lambda x: x.replace("'", "\""))
+                        )
+    df['json_string'] = df['json_string'].str.replace("None", '-1')
+    df['json_string'] = (df['json_string']
+                             .apply(lambda x: json.loads(x))
+                        )
+    df = pd.concat([df.drop(['json_string'], axis=1), 
+                    df['json_string'].apply(pd.Series)], axis=1
+                  )
+    
+    
+    return df
+
+
+def get_top_hastags(df,
+                    text_column,
+                   ):
+    '''
+    Gets the top n hashtags from text
+    :param df: Dataframe
+    :param text_column: Column which has text file
+    
+    :return dataframe
+    '''
+    df['hashtags'] = df[text_column].apply(
+            lambda x: list(set(re.findall(r'\B\#(\w+)', x)))
+        )
+    df['count'] = df['hashtags'].apply(
+        lambda x: len(x)
+    )
+
+    df_hasht = df.loc[df['count'] != 0]
+    df_hasht = df_hasht.explode('hashtags')
+    df_grp = (df_hasht
+              .groupby('hashtags')
+              .size()
+              .to_frame('freq')
+              .reset_index()
+              .sort_values(by=['freq'],
+                           ascending=False
+                          )
+             )
+
+    return df_grp
+
+
+def get_most_repeated_word(df, column, 
+                           n, remove_word=None, 
+                           count=False
+                          ):
+    '''
+    Gets the most repeated words from column
+    :param df: Dataframe
+    :param column: Name of text column
+    :param n: Number of top list to get
+    :param remove_word: list of Words to remove
+    :param count: Returns the count of each word if True
+    
+    :return list
+    '''
+    df['count'] = df[column].apply(lambda x: len(x))
+    df = df.loc[df['count'] > 1]
+    
+    df_exploded = df.explode(column)
+    df_exploded = df_exploded.loc[~(df_exploded[column] == 'nan')]
+    df_exploded = df_exploded.loc[~(df_exploded[column] == '.')]
+    df_exploded = df_exploded.loc[~(df_exploded[column] == '..')]
+    df_exploded = df_exploded.loc[~(df_exploded[column] == '-')]
+    df_exploded = df_exploded.loc[~(df_exploded[column] == '-')]
+    df_exploded = df_exploded.loc[~(df_exploded[column] == '')]
+
+    df_exploded[column] = df_exploded[column].astype(str)
+    
+
+    df_expl_grp = (df_exploded.groupby([column])
+              .size()
+              .to_frame('count')
+              .reset_index()
+             )
+    df_expl_grp = df_expl_grp.sort_values(by=['count'],
+                                          ascending=False
+                                         )
+    df_expl_grp.reset_index(inplace=True)
+    
+    if remove_word != None:
+        df_expl_grp = df_expl_grp.loc[
+            ~df_expl_grp[column].isin(remove_word)
+        ]
+        
+    if count == True:
+        
+        return df_expl_grp
+    
+    if n != None:
+        wordlist = df_exploded.loc[
+            df_exploded[column].isin(df_expl_grp[column].head(n))
+        ][column].tolist()
+        
+        return wordlist
+

@@ -55,13 +55,12 @@ def read_ops_control_data(ops_file_path, control_file_path,
 
     return data
 
-def add_YYYY_MM_DD(df):
-    df['tweet_time'] = pd.to_datetime(df['tweet_time'])
-    df['tweet_time_year'] = df.tweet_time.map(
+def add_YYYY_MM_DD(df, column='tweet_time'):
+    df[column] = pd.to_datetime(df[column])
+    df[f'{column}_year'] = df.tweet_time.map(
                 lambda x: x.strftime('%Y-%m-%d'))
     
     return df
-
 def add_tweet_time_month(df):
     df['tweet_time'] = pd.to_datetime(df['tweet_time'])
     df['tweet_time_year'] = df.tweet_time.map(
@@ -211,7 +210,7 @@ def parse_control_data(campaigns, input_file_path,
         # file_path = f'{path}/all_tweets/{year}/{campaign}/DriversControl'
         # filename = f'{file_path}/control_driver_tweets.jsonl.gz'
         
-    print(f'\n----------- {campaign} : Control data parse start ---------- \n')
+    print(f'\n----------- {campaigns} : Control data parse start ---------- \n')
     if os.path.isfile(input_file_path) == False:
         return [campaigns, False]
     
@@ -224,12 +223,11 @@ def parse_control_data(campaigns, input_file_path,
                 'user_display_name': one_row['user']['name'],
                 'userid': one_row['user']['id'],
                 'user_screen_name': one_row['user']['screen_name'],
-                'user_profile_url': one_row['user']['url'],
                 'user_profile_description': one_row['user']['description'],
                 'follower_count': one_row['user']['followers_count'],
                 'following_count': one_row['user']['friends_count'],
                 'user_reported_location': 0,
-
+                'user_profile_url': 0,
                 'tweetid': one_row['id'],
                 'tweet_text': one_row['full_text'],
                 'tweet_language': one_row['lang'],
@@ -257,6 +255,9 @@ def parse_control_data(campaigns, input_file_path,
 
             if 'location' in one_row['user']:
                 new_row['user_reported_location'] = one_row['user']['location']
+                
+            if 'url' in one_row['user']:
+                new_row['user_profile_url'] = one_row['user']['url']
 
             total_row.append(new_row)
 
@@ -266,9 +267,9 @@ def parse_control_data(campaigns, input_file_path,
             lambda x: x.strftime('%Y-%m-%d'))
 
     df.to_pickle(
-        f'{output_file_path}/{campaign}_tweets_control.pkl.gz')
+        f'{output_file_path}/{campaigns}_tweets_control.pkl.gz')
 
-    print(f'\n----------- {campaign} : Control data parse end ---------- \n')
+    print(f'\n----------- {campaigns} : Control data parse end ---------- \n')
             
             
             
@@ -763,6 +764,8 @@ def bundle_campaign(all_campaigns=None,
             '2018_10': ['ira', #*
                         'iranian'],
         }
+        if bundle == False:
+            return all_campaigns
 
 
     if bundle == None:
@@ -1032,3 +1035,77 @@ def get_data_path(path,
     print('Files not found')
     
     return None
+
+
+
+def jaccard_of_entity(df,
+                      entity_type='hastags',
+                      take_from='tweet_text',
+                     ):
+    '''
+    Calculates Jaccard for the entity
+    :param df: Dataframe
+    :param entity_type: Entity to extract
+    :param take_from: Column to take entity from
+    
+    :return Dataframe
+    '''
+    new_column = f'{take_from}_{entity_type}'
+    
+    if entity_type == 'hashtags':
+        df[new_column] = df[take_from].apply(
+            lambda x: list(set(re.findall(r'\B\#(\w+)', x))))
+
+    #get group hashtags
+    df_grps = (df[['poster_tweetid', new_column]]
+           .groupby(['poster_tweetid'], as_index=False)
+           .agg(list)
+          )
+    df_grps = df_grps.rename(columns={
+        new_column: f'grp_{entity_type}'
+    })
+    
+    grp_column = f'grp_{entity_type}'
+    
+    df_grps[grp_column] = (df_grps[grp_column]
+                           .apply(np.concatenate))
+    df_grps[grp_column] = (df_grps[grp_column]
+                               .apply(lambda x: set(x)))
+
+    #merge group and single hashtags
+    df_merge = df[['poster_tweetid',
+                   'replier_userid', 
+                   new_column]].merge(
+    df_grps, on='poster_tweetid')
+    
+    df_merge[new_column] = (df_merge[new_column]
+                           .apply(lambda x: set(x)))
+    
+    ##union
+    df_merge['union'] = [len(set(a) & set(b)) for a, b in zip(df_merge[new_column], 
+                                                     df_merge[grp_column]
+                                                    )]
+    
+    ##total
+    df_merge['total'] = df_merge[grp_column].apply(
+        lambda x: len(x))
+    
+    df_merge['jaccard'] = df_merge['union']/df_merge['total']
+
+    df_merge['jaccard'] = df_merge['jaccard'].apply(
+        lambda x: round(x,2))
+    
+    df_jaccard = df_merge[['poster_tweetid', 
+                           'replier_userid',
+                           'jaccard'
+                          ]]
+    
+    df_tweet_label = df[['poster_tweetid', 
+                         'tweet_label']].drop_duplicates()
+    
+    ##attach tweet label
+    df_label = df_jaccard.merge(df_tweet_label,
+                      on='poster_tweetid'
+                     )
+    
+    return df_label

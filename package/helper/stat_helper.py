@@ -459,14 +459,15 @@ def run_model(df,
                                )    
     cm = confusion_matrix(y_test, y_pred)
 
-    # print(cm)
-    
+    from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score, roc_auc_score
+
     #Cross validation
-    scoring = {'precision', 
-               'recall',
-               'f1',
-               'roc_auc'
-              }
+    scoring = {
+        'precision': make_scorer(precision_score, average='binary'),
+        'recall': make_scorer(recall_score, average='binary'),
+        'f1': make_scorer(f1_score, average='binary'),
+        'roc_auc': make_scorer(roc_auc_score, needs_proba=True)
+    }
 
     scores = cross_validate(model, X, y, scoring=scoring, cv=10)
     
@@ -1005,14 +1006,17 @@ def run_model_with_best_threshold(df,
         model = LogisticRegression(random_state=0)
     elif model_type == 'random':
         print('Running Random Forest')
-        model = RandomForestClassifier(n_estimators=100, 
-                                   random_state=42
-                                  )
+        model = RandomForestClassifier(
+            n_estimators=100, 
+            random_state=42,
+            n_jobs=-1
+        )
     elif model_type == 'ada':
         from sklearn.ensemble import AdaBoostClassifier
         model = AdaBoostClassifier(n_estimators=100,
                                  algorithm="SAMME", random_state=0)
     elif model_type == 'tree':
+        from sklearn import tree
         model = tree.DecisionTreeClassifier()
     elif model_type == 'naive':
         from sklearn.naive_bayes import GaussianNB
@@ -1046,7 +1050,7 @@ def run_model_with_best_threshold(df,
     from sklearn.metrics import f1_score
 
     model = make_pipeline(StandardScaler(), model)
-    cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=42)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=1, random_state=42)
     tuned_model = TunedThresholdClassifierCV(estimator=model,
                                              scoring='f1',
                                              store_cv_results = True,
@@ -1071,6 +1075,162 @@ def run_model_with_best_threshold(df,
         [est.best_threshold_ for est in cv_results_tuned_model["estimator"]],
     )
     cv_results_tuned_model['threshold'] = decision_threshold
+    
+    cv_results_tuned_model['algorithm'] = model_type
+    
+    return cv_results_tuned_model
+
+
+def run_oversample_model_with_best_threshold(df,
+              columns_not_include=['list_age'],
+              model_type='random', 
+              y_column = 'tweet_label',
+              filename=None,
+              estimator=True
+             ):
+    '''
+    Trains the model and prints the result
+    :param df: Dataframe
+    :param model_type: Type of model
+    :param pca: Whether to do PCA or not
+    :param columns_not_include: columns to not include
+    '''
+    print(f'\n **** {model_type} ****')
+
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import classification_report
+    from sklearn.metrics import roc_curve
+    from sklearn.metrics import auc
+    from sklearn.metrics import confusion_matrix
+    from sklearn.model_selection import RepeatedStratifiedKFold
+    from sklearn.model_selection import cross_validate
+    from sklearn.metrics import make_scorer
+    from imblearn.ensemble import BalancedRandomForestClassifier
+    from sklearn.model_selection import TunedThresholdClassifierCV
+    from sklearn.pipeline import make_pipeline
+    from sklearn.model_selection import RepeatedStratifiedKFold
+    from sklearn.metrics import f1_score
+
+    from sklearn.metrics import roc_auc_score
+    
+    ### Remove unnecessary columns
+    import pickle
+
+    model_filename = filename
+    
+    columns_not_include.extend(
+        ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label'])
+    
+    columns_to_keep = list(set(df.columns) - set(columns_not_include))
+
+    X = df[columns_to_keep]
+    y = df[y_column]
+  
+    ### Choose model
+    if model_type == 'logistic':
+        model = make_pipeline(
+            RandomOverSampler(sampling_strategy='minority', random_state=0),
+            LogisticRegression(
+            class_weight='balanced',
+            random_state=42,
+            n_jobs=-1
+        ))
+    elif model_type == 'random':
+        print('Running Random Forest')
+        # model = RandomForestClassifier(
+        #     n_estimators=100, 
+        #     random_state=42,
+        #     n_jobs=-1
+        # )
+        model = make_pipeline(
+            RandomOverSampler(sampling_strategy='minority', random_state=0),
+            BalancedRandomForestClassifier(
+            class_weight='balanced',
+            n_estimators=100, 
+            random_state=42,
+            n_jobs=-1
+        ))
+    elif model_type == 'ada':
+        from sklearn.ensemble import AdaBoostClassifier
+        # model = AdaBoostClassifier(n_estimators=100,
+        #                          algorithm="SAMME", random_state=0)
+        model = make_pipeline(
+                    RandomOverSampler(sampling_strategy='minority', random_state=0),
+                    AdaBoostClassifier(
+                        n_estimators=100, 
+                        random_state=42,
+                        algorithm="SAMME",
+                    ))
+    elif model_type == 'tree':
+        from sklearn import tree
+        # model = tree.DecisionTreeClassifier()
+        model = make_pipeline(
+                            RandomOverSampler(sampling_strategy='minority', random_state=0),
+                            tree.DecisionTreeClassifier()
+        )
+    elif model_type == 'naive':
+        from sklearn.naive_bayes import GaussianNB
+        # model = GaussianNB()
+        model = make_pipeline(
+                    RandomOverSampler(sampling_strategy='minority', random_state=0),
+                    GaussianNB()
+                )
+    
+    ### Choose scoring function
+    from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score, roc_auc_score
+
+    # Creating a dictionary of scorers
+    scoring = {
+        'precision': make_scorer(precision_score, average='binary'),
+        'recall': make_scorer(recall_score, average='binary'),
+        'f1': make_scorer(f1_score, average='binary'),
+        'roc_auc': make_scorer(roc_auc_score, needs_proba=True)
+    }
+
+    cv_scores = [
+        "train_precision",
+        "test_precision",
+        "train_recall",
+        "test_recall",
+        "train_f1",
+        "test_f1",
+        "train_roc_auc",
+        "test_roc_auc",
+    ]
+
+    model = make_pipeline(StandardScaler(), model)
+    
+    cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=1, random_state=42)
+    tuned_model = TunedThresholdClassifierCV(estimator=model,
+                                             scoring='f1',
+                                             store_cv_results = True,
+                                             n_jobs=-1
+                                            )
+
+    cv_results_tuned_model = pd.DataFrame(
+        cross_validate(
+            tuned_model,
+            X,
+            y,
+            scoring=scoring,
+            cv=cv,
+            return_train_score=True,
+            return_estimator=estimator,
+            n_jobs=-1
+        )
+    )
+   
+    from sklearn.metrics import f1_score
+
+    if estimator == True:
+        decision_threshold = pd.Series(
+            [est.best_threshold_ for est in cv_results_tuned_model["estimator"]],
+        )
+        cv_results_tuned_model['threshold'] = decision_threshold
     
     cv_results_tuned_model['algorithm'] = model_type
     

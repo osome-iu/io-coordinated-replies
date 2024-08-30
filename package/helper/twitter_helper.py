@@ -1,6 +1,7 @@
 import pandas as pd
 import json
-
+import re
+import glob
 
 def get_empty_profile_dict():
     '''
@@ -20,7 +21,9 @@ def get_empty_profile_dict():
         'followers_count': None,
         'following_count': None,
         'tweet_count': None,
-        'listed_count': None
+        'listed_count': None,
+        'location': None,
+        'parameter': None
     }
     
     return profiles
@@ -42,6 +45,8 @@ def set_values_in_profile_dict(values):
     profile['id']=values['id']
     profile['profile_image_url']=values['profile_image_url']
 
+    if 'location' in values:
+        profile['location'] = values['location']
     if 'pinned_tweet_id' in values:
         profile['pinned_tweet_id']=values['pinned_tweet_id']
 
@@ -52,7 +57,9 @@ def set_values_in_profile_dict(values):
         profile['followers_count']=public_metrics['followers_count']
         profile['following_count']=public_metrics['following_count']
         profile['tweet_count']=public_metrics['tweet_count']
-        profile['listed_count']=public_metrics['listed_count']
+
+        if 'listed_count' in public_metrics:
+            profile['listed_count']=public_metrics['listed_count']
         
     return profile
 
@@ -69,6 +76,9 @@ def set_values_for_profile_error(values):
         return None
     
     profile = get_empty_profile_dict()
+    
+    if 'parameter' in values:
+        profile['parameter'] = values['parameter']
     
     if 'suspended' in values['detail']:
         profile['verified'] = 'suspended'
@@ -99,8 +109,6 @@ def parse_profile_json(profile_file,
     with open(profile_file, 'r') as json_file:
         for row in json_file:
             one_row = json.loads(row)
-            # print(one_row.keys())
-            # print(one_row['errors'])
             
             if 'errors' in one_row:
                 for single_profile in one_row['errors']:
@@ -350,4 +358,89 @@ def parse_tweets(tweet_file, output_file=None):
         df.to_pickle(output_file)
 
     return df          
+                     
             
+    
+def extract_hashtags(df, 
+                     column='tweet_text',
+                     filter=False
+                    ) -> pd.DataFrame:
+    '''
+    Extracts the hashtags from tweets
+    
+    :param df: Tweet Dataframe
+    
+    :return pandas Dataframe
+    '''
+    df[f'hashtags_{column}'] = df[column].apply(
+        lambda x: list(set(re.findall(r'\B\#(\w+)', x))))
+    
+    if filter == True:
+    
+        return df.loc[df[f'hashtags_{column}'].map(len) != 0]
+    return df
+
+
+
+def get_user_info(path, save_path=None):
+    '''
+    Gets all user information from tweet json
+    :param path: path to json files
+    
+    :return Dataframe
+    '''
+    
+    all_profiles = []
+    for file in glob.glob(path):
+        print(file)
+        with open(file, 'r') as json_file:
+            for row in json_file:
+                one_row = json.loads(row)
+                if 'errors' in one_row:
+                    for single_profile in one_row['errors']:
+                        profile = set_values_for_profile_error(single_profile)
+                    if profile != None:
+                        all_profiles.append(profile)
+                    
+                if 'users' in one_row['includes']:
+                    for user_row in one_row['includes']['users']:
+                        profile = set_values_in_profile_dict(
+                            user_row)
+                        
+                        if profile != None:
+                            all_profiles.append(profile)
+                
+    df = pd.DataFrame.from_records(data=all_profiles)
+    
+    return df
+
+
+def non_language():
+    '''
+    Get non lanaguage code in tweets
+    '''
+    return ['qam', #tweet with mention only
+            'qct', #tweet with cashtags only
+            'qht', #tweet with hashtags only
+            'qme', #tweet with media links only
+            'qst', #tweet with very short text
+            'zxx', #absense of language code
+            'und', #undetermined
+                    # 'en'
+            ]
+
+
+def remove_non_language(df,
+                        language_column='tweet_language'):
+    '''
+    Remove non language tweets
+    :param df: DataFrame
+    :param language_column: column that has language 
+    information
+    
+    :return DataFrame
+    '''
+    non_lang = non_language()
+    
+    return df.loc[
+        ~df[language_column].isin(non_lang)]

@@ -72,3 +72,18 @@ def time_difference(df,
         
         
     return df
+
+
+
+def time_aware(df, column):
+    '''
+    It makes the datetime time naive (no time zone information
+    :param df: dataframe
+    :param column: column to apply the function in
+    
+    :return dataframe
+    '''
+    
+    df[column] = df[column].apply(lambda t: t.replace(tzinfo=None))
+    
+    return df

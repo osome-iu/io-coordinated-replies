@@ -121,8 +121,10 @@ def get_emb_cosine_multiple_dataframe(df,
             upper_triangular = rounded_similarity[np.triu_indices(
                 rounded_similarity.shape[0],
                 k=1)]
+            upper_triangular = upper_triangular.tolist()
+            upper_triangular = [round(x, 2) for x in upper_triangular]
             
-            df_grp_all.append(upper_triangular.tolist())
+            df_grp_all.append(upper_triangular)
         else:
             df_sample['cosine_similarity'] = remove_diagonal_elements(rounded_similarity).tolist()
             df_all = pd.concat([df_all, df_sample])

@@ -2,8 +2,11 @@ import re
 import nltk
 import string
 from nltk.corpus import stopwords
+import stopwordsiso
+
 nltk.download('stopwords')
 stopwords = set(stopwords.words('english'))
+
 
 def remove_emoji(text):
     emoji_pattern = re.compile("["
@@ -75,6 +78,8 @@ def remove_rt(text):
 
 
 def clean_tweet(text):
+    # print(type(text))
+    
     text = remove_URL(text)
     text = remove_html_tags(text)
     text = remove_mentions(text)
@@ -89,9 +94,55 @@ def clean_tweet(text):
     
     text = remove_stopwords(text)
     
-    
+    if len(text) == 0:
+        return 0
     
     if len(text.strip()) == 0:
         text = 0
     
     return text.lower()
+
+
+def preprocess_text(lang, df, column):
+    '''
+    Preprocess text by removing langauge specific stopwords
+    :param lang: Language to remove the stopwords
+    :param df: Dataframe
+    :param column: Name of text column
+    
+    return Dataframe
+    '''
+    if stopwordsiso.has_lang(lang) != True:
+        return
+
+    df = df.loc[~df[column].isnull()]
+    df = df.loc[df[column] != 0]
+
+    df['tweet_text'] = df[column].apply(
+        lambda x: clean_tweet(x)
+    )
+    
+    rm = re.compile(r'\b\w+#')
+    rmb = re.compile(r'#\b\w+')
+
+
+    df = df.loc[~df['tweet_text'].isnull()]
+
+    df = df[df['tweet_text'].str.len()>0]
+
+    df['tweet_text'] = df['tweet_text'].apply(
+        lambda x: rm.sub(r'', x)
+    )
+    
+    df['tweet_text_list'] = df['tweet_text'].apply(
+        lambda x: x.split()
+    )
+
+    df['filtered_text'] = \
+    df['tweet_text_list'].apply(lambda x:
+                                [str(word) for word in x if word not in stopwordsiso.stopwords(lang) and len(word) > 1]
+                               )
+    df = df[df['tweet_text_list'].apply(lambda x: len(x)>0)]
+    
+    return df
+
