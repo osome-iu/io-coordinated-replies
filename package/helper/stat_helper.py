@@ -251,19 +251,7 @@ def all_stat(df,
         lambda x: np.quantile(np.array(x), [0.75])[0] - np.quantile(np.array(x), [0.25])[0]
     
     ) 
-    #Variance
-    # df_stat[f'var_{column_to_take}'] = df_stat[list_column].apply(
-    #     lambda x: np.var(np.array(x)))
-    
-    # Coefficient of variation
-    # df_stat[f'cof_{column_to_take}'] = df_stat[list_column].apply(
-    #     lambda x: np.std(np.array(x)) / np.mean(np.array(x)) * 100)
-    
-    # # Mean Absolute Deviation
-    # df_stat[f'mad_{column_to_take}'] = df_stat[list_column].apply(
-    #     lambda x: np.mean(np.absolute(np.array(x) - np.mean(np.array(x))))
-    # )
-    
+   
     # Entropy
     df_stat[f'entropy_{column_to_take}'] = df_stat[list_column].apply(entropy)
     
@@ -344,38 +332,22 @@ def run_model(df,
 
     model_filename =' k' #'user_classifier_without_pca_ran.sav'
         
-    # print(df.columns)
-    # name = columns_not_include[0].split('_')[1]
-    
     columns_not_include.extend(
         ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label'])
     
     columns_to_keep = list(set(df.columns) - set(columns_not_include))
     
-    # if just_f1 == False:
-    #     for x_col in columns_to_keep:
-    #         print(x_col)
-
     X = df[columns_to_keep]
     y = df[y_column]
-    
-    # if just_f1 == True:
-    # print('Columns: ', len(columns_to_keep))
     
     if 'mean_tensor' in columns_to_keep:
         t = df['mean_tensor'].tolist()
         t = torch.stack(t)
         t = t[:, :100]
         
-        # print(len(columns_to_keep))
         columns_to_keep.remove('mean_tensor')
         
-#         print(columns_to_keep)
-        
-#         print('after :', len(columns_to_keep))
-#         print('columns_to_keep: ', columns_to_keep)
         z = df[columns_to_keep]
-        # print(z)
         k = torch.tensor(z.values)
         X = torch.cat((t, k), dim=1)
     else:
@@ -384,16 +356,13 @@ def run_model(df,
         
     #PCA 
     scaler = StandardScaler()
-    # print(X)
     X = scaler.fit_transform(X)
     indices = df.index
     
     if pca == True:
-        print('here')
         print(len(columns_to_keep))
         pca = PCA()
 
-        # Fit the PCA object to the data and transform the data
         X = pca.fit_transform(X)
         print('After PCA shape ', X.shape)
 
@@ -438,10 +407,6 @@ def run_model(df,
     if all_train == True:
         return model
             
-            # pickle.dump(model, open(model_filename, 'wb'))
-    
-    # print(model.score(X_train, y_train))
-
     y_pred = model.predict(X_test)
 
     result = classification_report(y_test, y_pred, 
@@ -451,7 +416,6 @@ def run_model(df,
                                 average='binary',
                                 pos_label=1
                                )    
-    # print(result)
     prf_0 = precision_recall_fscore_support(y_test, 
                                 y_pred,
                                 average='binary',
@@ -501,59 +465,22 @@ def run_model(df,
             # 'auc_pr': auc_pr
     }
     
-    #feature importance
-#     flag_imprt = (model_type == 'random') and (pca == False) and (feat_importance == True)
-    
-#     if flag_imprt:
-#         model, X_test, y_test,
-        # df_imp = pd.DataFrame({
-        #     'Feature': columns_to_keep, 
-        #     'Importance': model.feature_importances_})
-        # df_imp = df_imp.sort_values('Importance', 
-        #                                  ascending=False).set_index('Feature')
-        # print(df_imp.head(10))
-        # df_imp.to_pickle('feat_importance_without_pca.pkl.gz')
-
-    #ROC curve
     lr_probs = model.predict_proba(X_test)
     
     fpr, tpr, thresholds = roc_curve(y_test, lr_probs[:, 1])
     
-    # Compute the AUC score
     roc_auc = auc(fpr, tpr)
-    
-    # Plot the ROC curve
-    # fig, ax = plt.subplots(figsize=(8,8))
-    # ax.plot(fpr, tpr, color='darkorange', 
-    #          lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    # ax.plot([0, 1], [0, 1], color='navy', 
-    #          lw=2, linestyle='--')
-    # ax.set_xlim([0.0, 1.0])
-    # ax.set_ylim([0.0, 1.05])
-    # ax.set_xlabel('False Positive Rate')
-    # ax.set_ylabel('True Positive Rate')
-    # ax.set_title(f'Receiver Operating Characteristic (ROC) Curve ')
-    # ax.legend(loc="lower right")
-    # plt.show()
-
+  
     if filename != None:
         fig.savefig(f'{filename}')
     
     from sklearn.metrics import precision_recall_curve
 
-    # y_true and y_scores are the true labels and predicted scores, respectively
     precision, recall, thresholds = precision_recall_curve(y_test,
                                                         lr_probs[:, 1])
 
-    # plot the precision-recall curve
-    # plt.plot(recall, precision)
-    # plt.xlabel('Recall')
-    # plt.ylabel('Precision')
-    # plt.title('Precision-Recall Curve')
-    # plt.show()
     
     df_pred = df.loc[indices_test]
-    # df_pred['pred'] = y_pred
     
     if find_threshold == True:
         threshold = threshold_search(lr_probs, y_test)
@@ -573,162 +500,6 @@ def KS_test(data1, data2):
 
     print('KS test statistic:', statistic)
     print('p-value:', pvalue)
-    
-    
-def KNN(df,
-        columns_not_include=['list_age'],
-        y_column = 'replier_label',
-        filename='knearest_neighbor_time_diff.png',
-        metric='cosine',
-        cross_validation_file=None
-       ):
-    
-    '''
-    Performs kNN classification
-    :param df: Dataframe
-    :param columns_not_include: columns to not include in classification
-    :param y_column: target column
-    :param filename: filename of roc curve plot
-    :param cross_validation_file: file to save the cross validation result
-    '''
-    
-    from sklearn.model_selection import StratifiedKFold
-    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-    
-    knnClassifier = KNeighborsClassifier(n_neighbors = 5, 
-                                         metric = metric, 
-                                        )
-                    
-    columns_not_include.extend(
-        ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label'])
-    
-    columns_to_keep = list(set(df.columns) - set(columns_not_include))
-    
-    print(df[y_column].unique())
-    
-    X = df[columns_to_keep]
-
-    #PCA 
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
-    indices = df.index
-    
-    y = df[y_column]
-
-    print('here')
-    pca = PCA()
-
-    # Fit the PCA object to the data and transform the data
-    X = pca.fit_transform(X)
-    print('After PCA shape ', X.shape)
-
-    X_train, X_test, y_train, y_test, indices_train, indices_test = train_test_split(X,
-                                                                                     y,
-                                                                                     indices,
-                                                        # random_state=104, 
-                                                        stratify=y,
-                                                        test_size=0.20, 
-                                                        shuffle=True)
-
-    print('Xtrain: ', len(X_train))
-    print('Xtrain shape: ', X_train.shape)
-    print('Xtest: ', len(X_test))
-    print('Ytrain: ', len(y_train))
-    print('Ytest: ', len(y_test))
-
-
-    knnClassifier.fit(X_train, y_train)
-    y_pred = knnClassifier.predict(X_test)
-
-    result = classification_report(y_test,
-                                   y_pred, 
-                                   labels=[0,1])
-
-    print(result)
-
-    #Stratified Cross validation
-    def stratified_cross_validation(classifier=knnClassifier, 
-                                    cross_validation_file=cross_validation_file,
-                                    X=X_train,
-                                    y=y_train,
-                                    k=5, 
-                                    ):
-        accuracy_scores = []
-        precision_scores = []
-        recall_scores = []
-        f1_scores = []
-        
-        # Perform stratified cross-validation
-        skf = StratifiedKFold(n_splits=k)
-        for train_index, test_index in skf.split(X, y):
-            # Split data into train and test sets based on the cross-validation split indices
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-
-            # Fit the classifier on the training data
-            classifier.fit(X_train, y_train)
-
-            # Make predictions on the test data
-            y_pred = classifier.predict(X_test)
-
-            # Calculate evaluation metrics for the fold and store the results
-            accuracy_scores.append(accuracy_score(y_test, y_pred))
-            precision_scores.append(precision_score(y_test, y_pred))
-            recall_scores.append(recall_score(y_test, y_pred))
-            f1_scores.append(f1_score(y_test, y_pred))
-
-        # Compute the mean and standard deviation of the evaluation metrics across all folds
-        mean_accuracy = np.mean(accuracy_scores)
-        std_accuracy = np.std(accuracy_scores)
-        mean_precision = np.mean(precision_scores)
-        std_precision = np.std(precision_scores)
-        mean_recall = np.mean(recall_scores)
-        std_recall = np.std(recall_scores)
-        mean_f1 = np.mean(f1_scores)
-        std_f1 = np.std(f1_scores)
-
-        # Print the mean and standard deviation of the evaluation metrics
-        print("Mean Accuracy: {:.3f} (+/- {:.3f})".format(mean_accuracy, std_accuracy))
-        print("Mean Precision: {:.3f} (+/- {:.3f})".format(mean_precision, std_precision))
-        print("Mean Recall: {:.3f} (+/- {:.3f})".format(mean_recall, std_recall))
-        print("Mean F1-Score: {:.3f} (+/- {:.3f})".format(mean_f1, std_f1))
-        
-        with open(f'{cross_validation_file}', 'w') as file:
-            file.write("Mean Accuracy: {:.3f} (+/- {:.3f}) \n".format(mean_accuracy, std_accuracy))
-            file.write("Mean Precision: {:.3f} (+/- {:.3f}) \n".format(mean_precision, std_precision))
-            file.write("Mean Recall: {:.3f} (+/- {:.3f}) \n".format(mean_recall, std_recall))
-            file.write("Mean F1-Score: {:.3f} (+/- {:.3f}) \n".format(mean_f1, std_f1))
-
-    stratified_cross_validation()
-    
-    lr_probs = knnClassifier.predict_proba(X_test) 
-
-
-    fpr, tpr, thresholds = roc_curve(y_test, lr_probs[:, 1])
-
-    # Compute the AUC score
-    roc_auc = auc(fpr, tpr)
-
-    # Plot the ROC curve
-    fig, ax = plt.subplots(figsize=(8,8))
-    ax.plot(fpr, tpr, color='darkorange', 
-             lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    ax.plot([0, 1], [0, 1], color='navy', 
-             lw=2, linestyle='--')
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.05])
-    ax.set_xlabel('False Positive Rate')
-    ax.set_ylabel('True Positive Rate')
-    ax.set_title('Receiver Operating Characteristic (ROC) Curve \n Knearest neighbor \n Reply time diff')
-    ax.legend(loc="lower right")
-    plt.show()
-
-    config = config_hp.config()
-    plot_path = config['PLOTS']
-    reply_plot_path = plot_path['reply_plot_path']
-
-    fig.savefig(f'{reply_plot_path}/{filename}')
-    
     
     
 def limit_statistics(df, 
@@ -799,8 +570,10 @@ def limit_statistics(df,
     df_stat[f'entropy_{column_to_take}'] = df_stat[list_column].apply(entropy)
     
     df_group = df_des.merge(df_stat,
-                              on=column_to_groupby)
-    
+                              on=column_to_groupby
+                           )
+
+    #Adding replier label info
     grps = df.groupby([column_to_groupby, 
                        label]).groups.keys()
     df_grps = pd.DataFrame(data=grps, columns=[column_to_groupby, 
@@ -809,7 +582,6 @@ def limit_statistics(df,
     df_group = df_group.merge(df_grps[[column_to_groupby, 
                                        label]],
                               on=column_to_groupby)
-    # df_group = df_group.fillna(0)
     
     return df_group
 
@@ -976,15 +748,16 @@ def run_imbalanced_model(
 def run_model_with_best_threshold(df,
               columns_not_include=['list_age'],
               model_type='random', 
-              y_column = 'tweet_label',
-              filename=None,
+              y_column= 'tweet_label',
              ):
     '''
     Trains the model and prints the result
-    :param df: Dataframe
+    :param df: Dataframe that has features
+    :param columns_not_include: Columns to remove from features
     :param model_type: Type of model
-    :param pca: Whether to do PCA or not
-    :param columns_not_include: columns to not include
+    :param y_column: Whether to do PCA or not
+
+    :return Dataframe
     '''
     print(f'\n **** {model_type} ****')
     
@@ -1141,11 +914,6 @@ def run_oversample_model_with_best_threshold(df,
         ))
     elif model_type == 'random':
         print('Running Random Forest')
-        # model = RandomForestClassifier(
-        #     n_estimators=100, 
-        #     random_state=42,
-        #     n_jobs=-1
-        # )
         model = make_pipeline(
             RandomOverSampler(sampling_strategy='minority', random_state=0),
             BalancedRandomForestClassifier(
@@ -1156,8 +924,6 @@ def run_oversample_model_with_best_threshold(df,
         ))
     elif model_type == 'ada':
         from sklearn.ensemble import AdaBoostClassifier
-        # model = AdaBoostClassifier(n_estimators=100,
-        #                          algorithm="SAMME", random_state=0)
         model = make_pipeline(
                     RandomOverSampler(sampling_strategy='minority', random_state=0),
                     AdaBoostClassifier(
@@ -1167,14 +933,12 @@ def run_oversample_model_with_best_threshold(df,
                     ))
     elif model_type == 'tree':
         from sklearn import tree
-        # model = tree.DecisionTreeClassifier()
         model = make_pipeline(
                             RandomOverSampler(sampling_strategy='minority', random_state=0),
                             tree.DecisionTreeClassifier()
         )
     elif model_type == 'naive':
         from sklearn.naive_bayes import GaussianNB
-        # model = GaussianNB()
         model = make_pipeline(
                     RandomOverSampler(sampling_strategy='minority', random_state=0),
                     GaussianNB()
@@ -1204,7 +968,7 @@ def run_oversample_model_with_best_threshold(df,
 
     model = make_pipeline(StandardScaler(), model)
     
-    cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=1, random_state=42)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=1, random_state=42)
     tuned_model = TunedThresholdClassifierCV(estimator=model,
                                              scoring='f1',
                                              store_cv_results = True,
