@@ -274,41 +274,6 @@ def all_stat(df,
 
 
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-
-def threshold_search(lr_probs, y_test):
-    thresholds = np.linspace(0, 1, 100)
-
-    best_threshold = 0
-    best_score = 0
-
-    # Iterate over the threshold values and evaluate the classifier at each threshold
-    for threshold in thresholds:
-        # Convert probabilities to binary predictions using the threshold
-        y_pred = (lr_probs[:, 1] > threshold).astype(int)
-
-        # Calculate the evaluation metrics
-        accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
-
-        # Calculate a single score to compare different thresholds
-        score = 2 * precision * recall / (precision + recall)
-
-        # Update the best threshold and score if a better threshold is found
-        if score > best_score:
-            best_threshold = threshold
-            best_score = score
-
-    # Print the best threshold and corresponding performance
-    print("Best Threshold:", best_threshold)
-    print("Best F1 Score:", best_score)
-    
-    
-    return best_threshold
-
-
 def KS_test(data1, data2):
     '''
     Tes the KS test for data1 and data2
@@ -514,100 +479,60 @@ def run_model_with_best_threshold(df,
     return cv_results_tuned_model
 
 
-def run_oversample_model_with_best_threshold(df,
-              columns_not_include=['list_age'],
-              model_type='random', 
-              y_column = 'tweet_label',
-              filename=None,
-              estimator=True
-             ):
+def run_oversample_model_with_best_threshold(df, columns_not_include=['list_age'],
+                                             model_type='random', y_column='tweet_label',
+                                             filename=None, estimator=True):
     '''
-    Trains the model and prints the result
+    Trains the model and prints the result.
     :param df: Dataframe
-    :param model_type: Type of model
-    :param pca: Whether to do PCA or not
-    :param columns_not_include: columns to not include
+    :param model_type: Type of model ('logistic', 'random', etc.)
+    :param columns_not_include: columns to not include in the model
+    :param y_column: The target column
+    :param filename: Optional filename to save the model
+    :param estimator: Whether to return the estimator
+    :return: DataFrame with cross-validation results
     '''
     print(f'\n **** {model_type} ****')
 
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
     from sklearn.preprocessing import StandardScaler
-    from sklearn.decomposition import PCA
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import classification_report
-    from sklearn.metrics import roc_curve
-    from sklearn.metrics import auc
-    from sklearn.metrics import confusion_matrix
-    from sklearn.model_selection import RepeatedStratifiedKFold
-    from sklearn.model_selection import cross_validate
-    from sklearn.metrics import make_scorer
+    from sklearn.model_selection import  RepeatedStratifiedKFold, cross_validate
+    from sklearn.metrics import roc_curve, auc
+    from sklearn.metrics import make_scorer, roc_auc_score
     from imblearn.ensemble import BalancedRandomForestClassifier
-    from sklearn.model_selection import TunedThresholdClassifierCV
-    from sklearn.pipeline import make_pipeline
-    from sklearn.model_selection import RepeatedStratifiedKFold
-    from sklearn.metrics import f1_score
+    from imblearn.over_sampling import RandomOverSampler
+    import pandas as pd
+    from imblearn.pipeline import make_pipeline
 
-    from sklearn.metrics import roc_auc_score
-    
-    ### Remove unnecessary columns
-    import pickle
-
-    model_filename = filename
-    
-    columns_not_include.extend(
-        ['poster_tweetid','tweet_label', 'replier_userid', 'replier_label'])
-    
+    # Filter columns
+    columns_not_include.extend(['poster_tweetid', 'tweet_label',
+                                'replier_userid', 'replier_label'])
     columns_to_keep = list(set(df.columns) - set(columns_not_include))
-
     X = df[columns_to_keep]
     y = df[y_column]
-  
-    ### Choose model
+
+    # Choose model
     if model_type == 'logistic':
-        model = make_pipeline(
-            RandomOverSampler(sampling_strategy='minority', random_state=0),
-            LogisticRegression(
-            class_weight='balanced',
-            random_state=42,
-            n_jobs=-1
-        ))
+        model = LogisticRegression(class_weight='balanced', random_state=42, n_jobs=-1)
     elif model_type == 'random':
-        print('Running Random Forest')
-        model = make_pipeline(
-            RandomOverSampler(sampling_strategy='minority', random_state=0),
-            BalancedRandomForestClassifier(
-            class_weight='balanced',
-            n_estimators=100, 
-            random_state=42,
-            n_jobs=-1
-        ))
+        model = BalancedRandomForestClassifier(class_weight='balanced', n_estimators=100, random_state=42, n_jobs=-1)
     elif model_type == 'ada':
-        from sklearn.ensemble import AdaBoostClassifier
-        model = make_pipeline(
-                    RandomOverSampler(sampling_strategy='minority', random_state=0),
-                    AdaBoostClassifier(
-                        n_estimators=100, 
-                        random_state=42,
-                        algorithm="SAMME",
-                    ))
+        model = AdaBoostClassifier(n_estimators=100, random_state=42, algorithm="SAMME")
     elif model_type == 'tree':
         from sklearn import tree
-        model = make_pipeline(
-                            RandomOverSampler(sampling_strategy='minority', random_state=0),
-                            tree.DecisionTreeClassifier()
-        )
+        model = tree.DecisionTreeClassifier()
     elif model_type == 'naive':
         from sklearn.naive_bayes import GaussianNB
-        model = make_pipeline(
-                    RandomOverSampler(sampling_strategy='minority', random_state=0),
-                    GaussianNB()
-                )
-    
-    ### Choose scoring function
-    from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score, roc_auc_score
+        model = GaussianNB()
 
-    # Creating a dictionary of scorers
+    # Make pipeline with oversampling
+    model_pipeline = make_pipeline(StandardScaler(), 
+                                   RandomOverSampler(sampling_strategy='minority', 
+                                                     random_state=0),
+                                   model)
+
+    # Define scoring metrics
     scoring = {
         'precision': make_scorer(precision_score, average='binary'),
         'recall': make_scorer(recall_score, average='binary'),
@@ -615,47 +540,52 @@ def run_oversample_model_with_best_threshold(df,
         'roc_auc': make_scorer(roc_auc_score, needs_proba=True)
     }
 
-    cv_scores = [
-        "train_precision",
-        "test_precision",
-        "train_recall",
-        "test_recall",
-        "train_f1",
-        "test_f1",
-        "train_roc_auc",
-        "test_roc_auc",
-    ]
-
-    model = make_pipeline(StandardScaler(), model)
-    
+    # Cross-validation
     cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=1, random_state=42)
-    tuned_model = TunedThresholdClassifierCV(estimator=model,
+    tuned_model = TunedThresholdClassifierCV(estimator=model_pipeline,
                                              scoring='f1',
-                                             store_cv_results = True,
-                                             n_jobs=-1
-                                            )
+                                             store_cv_results=True, 
+                                             n_jobs=-1)
 
-    cv_results_tuned_model = pd.DataFrame(
-        cross_validate(
-            tuned_model,
-            X,
-            y,
-            scoring=scoring,
-            cv=cv,
-            return_train_score=True,
-            return_estimator=estimator,
-            n_jobs=-1
-        )
-    )
-   
-    from sklearn.metrics import f1_score
+    cv_results_tuned_model = pd.DataFrame(cross_validate(tuned_model, 
+                                                         X, y, 
+                                                         scoring=scoring, 
+                                                         cv=cv,
+                                                         return_train_score=True, 
+                                                         return_estimator=estimator, 
+                                                         n_jobs=-1))
 
-    if estimator == True:
-        decision_threshold = pd.Series(
-            [est.best_threshold_ for est in cv_results_tuned_model["estimator"]],
-        )
+    # If estimator is True, calculate threshold
+    if estimator:
+        decision_threshold = pd.Series([est.best_threshold_ for est in cv_results_tuned_model["estimator"]])
         cv_results_tuned_model['threshold'] = decision_threshold
-    
+
     cv_results_tuned_model['algorithm'] = model_type
-    
+
     return cv_results_tuned_model
+
+
+
+def print_standard_error(values, label):
+    '''
+    Calculates the standard error
+    :param values: List of values to calculate the
+    standard deviation and mean
+    :param label: What is the label for values
+
+    :return mean_values: Mean of values
+    :return std_values: Standard deviation from mean
+    '''
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy import stats
+    
+    mean_values = np.mean(values)
+    
+    # Standard deviation as error bars
+    std_values = np.std(values)
+    error = std_values/(np.sqrt(len(values)))
+
+    print(f"Mean {label}: {mean_values:.3f} ± standard error {error}")
+
+    return mean_values, std_values
