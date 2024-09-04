@@ -105,7 +105,11 @@ data/Derived/
 plots/
 docs/
 heuristics/
-data/
+data/*
+
+# But do not ignore the folder itself or its .gitignore file
+!data/
+
 .ipynb_checkpoints/
 
 !.gitignore
