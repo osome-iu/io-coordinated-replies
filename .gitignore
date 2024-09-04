@@ -108,3 +108,5 @@ heuristics/
 data/
 .ipynb_checkpoints/
 
+!.gitignore
+
