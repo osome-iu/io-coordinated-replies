@@ -9,6 +9,7 @@ Our analysis reveals that the primary targets of these attacks are influential p
 We propose two supervised machine-learning models, one to classify tweets to determine whether they are targeted by a reply attack, and one to classify accounts that reply to a targeted tweet to determine whether they are part of a coordinated attack. 
 The classifiers achieve AUC scores of 0.88 and 0.97, respectively. 
 These results indicate that accounts involved in reply attacks can be detected, and the targeted accounts themselves can serve as sensors for influence operation detection. 
+![](dataset.png)
 
 ## Replicating the results:
 
