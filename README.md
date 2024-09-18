@@ -31,16 +31,20 @@ pip install package/setup.py
 ```
 
 ### Data:
-Copy the data folder from the URL:
+Copy the data folder to project folder from the URL:
 [](Link)
 
-
-
+### Folder structure
+- ```data``` all the datasets required to replicate the results
+- ```package``` helper packages
+- ```plots``` plots of results
+- ```results``` results of the analysis
+- ```RQ1``` scripts to run analysis for RQ1
+- ```RQ2``` scripts to run analysis for RQ2
+- ```RQ3``` scripts to run analysis for RQ3
 
 ### Acknowledgements:
 This work  was  supported  in  part  by  Knight Foundation,  Craig Newmark Philanthropies, DARPA (contract HR001121C0169), and Lilly Endowment, Inc., through its support for the Indiana University Pervasive Technology Institute.
 
-Additional Sections (Optional)
-Features: Highlight key features or benefits of the project.
-Roadmap: Outline future plans or developments.
-Contact: Provide contact information for project maintainers or support.
+### Questions
+Any question should be directed to [Manita Pote](https://manitapote.github.io/)
