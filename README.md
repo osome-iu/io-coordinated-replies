@@ -1,4 +1,5 @@
-Project Title: **Coordinated Reply Attacks in Influence Operations: Characterization and Detection**
+#### Project Title
+**Coordinated Reply Attacks in Influence Operations: Characterization and Detection**
 
 Description:
 Coordinated reply attacks are a tactic observed in online influence operations and other coordinated campaigns to support or harass targeted individuals, or influence them or their followers.
