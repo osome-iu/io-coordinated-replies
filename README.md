@@ -35,7 +35,7 @@ pip install package/setup.py
 Copy the data folder to project folder from the URL:
 [](Link)
 
-### Folder structure
+### Folder structure:
 - ```data``` all the datasets required to replicate the results
 - ```package``` helper packages
 - ```plots``` plots of results
@@ -47,5 +47,5 @@ Copy the data folder to project folder from the URL:
 ### Acknowledgements:
 This work  was  supported  in  part  by  Knight Foundation,  Craig Newmark Philanthropies, DARPA (contract HR001121C0169), and Lilly Endowment, Inc., through its support for the Indiana University Pervasive Technology Institute.
 
-### Questions
+### Questions:
 Any question should be directed to [Manita Pote](https://manitapote.github.io/)
