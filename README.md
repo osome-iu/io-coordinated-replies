@@ -1,7 +1,6 @@
-# Project Title
-## **Coordinated Reply Attacks in Influence Operations: Characterization and Detection**
+# **Coordinated Reply Attacks in Influence Operations: Characterization and Detection**
 
-Description:
+## Introduction
 Coordinated reply attacks are a tactic observed in online influence operations and other coordinated campaigns to support or harass targeted individuals, or influence them or their followers.
 Despite its potential to influence the public, past studies have yet to analyze or provide a methodology to detect this tactic.
 In this study, we characterize coordinated reply attacks in the context of influence operations on Twitter. 
@@ -11,23 +10,34 @@ We propose two supervised machine-learning models, one to classify tweets to det
 The classifiers achieve AUC scores of 0.88 and 0.97, respectively. 
 These results indicate that accounts involved in reply attacks can be detected, and the targeted accounts themselves can serve as sensors for influence operation detection. 
 
-Installation:
-[Provide instructions on how to install the necessary dependencies and set up the project environment.]
+## Replicating the results:
 
-Usage:
-[Explain how to use the project, including any required commands or configuration.]
+### Requirement:
+```python
+python>=3
+pandas==2.2.2
+imbalanced-learn==0.12.3
+scikit_learn==1.5.0
+shifterator==0.3.0
+stopwordsiso==0.6.1
+wordcloud==1.9.3
+```
 
-Examples:
-[Include code examples or demonstrations of the project's capabilities.]
+### Installing helper package:
+From the root directory of the project, type the following in the command line.
+```python
+pip install package/setup.py
+```
 
-Contributing:
-[Guidelines for contributing to the project, such as forking, creating pull requests, and coding conventions.]
+### Data:
+Copy the data folder from the URL:
+[](Link)
 
-License:
-[Specify the license under which the project is released (e.g., MIT, Apache License 2.0).]
 
-Acknowledgements:
-[Thank any individuals, organizations, or resources that contributed to the project.]
+
+
+### Acknowledgements:
+This work  was  supported  in  part  by  Knight Foundation,  Craig Newmark Philanthropies, DARPA (contract HR001121C0169), and Lilly Endowment, Inc., through its support for the Indiana University Pervasive Technology Institute.
 
 Additional Sections (Optional)
 Features: Highlight key features or benefits of the project.
