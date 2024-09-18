@@ -20,9 +20,9 @@ del df_pos_cosine
 gc.collect()
 
 #Sample the normal
-all_feature = './../data/replier_classifier_features.pkl.gz'
+all_feature = './../data/RQ3_replier_classifier_features.csv'
 
-df_stat = pd.read_pickle(all_feature)
+df_stat = pd.read_csv(all_feature)
 df_0 = df_stat.loc[df_stat['replier_label'] == 0]
 df_1 = df_stat.loc[df_stat['replier_label'] == 1]
 
@@ -106,19 +106,6 @@ def plot_histogram(parameters):
     colors = ['red', 'blue', 'green', 
               'orange', 'olive', 'pink', 'lime',
               'maroon'
-             ]
-    colors = ['blue', 
-              'pink', 
-              'pink', 
-              'pink', 
-              'pink', 
-              'pink', 
-              'pink', 
-              'pink', 
-              'pink'
-              'pink', 
-              'pink',
-              'pink'
              ]
     for i, df in enumerate(parameters['data']):
         if i == 0:
