@@ -27,6 +27,7 @@ wordcloud==1.9.3
 ### Installing helper package:
 From the root directory of the project, type the following in the command line.
 ```python
+cd io-coordinated-replies
 pip install package/setup.py
 ```
 
