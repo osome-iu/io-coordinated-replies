@@ -27,7 +27,7 @@ These results indicate that accounts involved in reply attacks can be detected, 
 
 ## Replicating the results:
 
-### DOI for data: 
+### DOI for data: https://doi.org/10.5281/zenodo.13896308
 
 ### Requirement:
 ```python
