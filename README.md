@@ -53,8 +53,8 @@ pip install package/setup.py
 - ```plots``` plots of results
 - ```results``` results of the analysis
 - ```RQ1``` scripts to run analysis for RQ1
-- ```RQ2``` scripts to run analysis for RQ2
-- ```RQ3``` scripts to run analysis for RQ3
+- ```RQ2``` scripts to run analysis for RQ2, be sure to run all the notebooks in sequence
+- ```RQ3``` scripts to run analysis for RQ3, be sure to run all the notebooks in sequence
 
 ### Acknowledgements:
 This work  was  supported  in  part  by  Knight Foundation,  Craig Newmark Philanthropies, DARPA (contract HR001121C0169), and Lilly Endowment, Inc., through its support for the Indiana University Pervasive Technology Institute.
