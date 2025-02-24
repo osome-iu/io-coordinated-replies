@@ -27,8 +27,6 @@ These results indicate that accounts involved in reply attacks can be detected, 
 
 ## Replicating the results:
 
-### DOI for data: https://doi.org/10.5281/zenodo.13896308
-
 ### Requirement:
 ```python
 python>=3
@@ -47,12 +45,10 @@ cd io-coordinated-replies
 pip install package/setup.py
 ```
 
-### Data:
-Copy the data folder to project folder from the URL:
-[](Link)
+### Zenodo Data Repository: https://doi.org/10.5281/zenodo.13896308
 
 ### Folder structure:
-- ```data``` all the datasets required to replicate the results
+- ```data``` place here all the data files from the above zenodo repository
 - ```package``` helper packages
 - ```plots``` plots of results
 - ```results``` results of the analysis
