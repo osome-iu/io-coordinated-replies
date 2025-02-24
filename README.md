@@ -46,7 +46,7 @@ pip install package/setup.py
 
 ### Zenodo Data Repository: https://doi.org/10.5281/zenodo.13896308
 
-### Folder structure:
+### Folder structure and instructions:
 - ```data``` place here all the data files from the above zenodo repository
 - ```package``` helper packages
 - ```plots``` plots of results
