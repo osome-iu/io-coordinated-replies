@@ -2,6 +2,18 @@
 
 This repository contains code to replicate the results in the paper: "Coordinated Reply Attacks in Influence Operations: Characterization and Detection"
 
+```
+@inproceedings{Pote2024replies,
+	author = {Manita Pote and Tu{\u g}rulcan Elmas and Alessandro Flammini and Filippo Menczer},
+	booktitle = {Proc. AAAI International Conference on Web and Social Media (ICWSM)},
+	doi = {10.48550/arXiv.2410.19272},
+	note = {Preprint arXiv:2410.19272},
+	title = {Coordinated Reply Attacks in Influence Operations: Characterization and Detection},
+	url = {https://doi.org/10.48550/arXiv.2410.19272},
+	year = {2025}
+}
+```
+
 ## Introduction
 Coordinated reply attacks are a tactic observed in online influence operations and other coordinated campaigns to support or harass targeted individuals, or influence them or their followers.
 Despite its potential to influence the public, past studies have yet to analyze or provide a methodology to detect this tactic.
